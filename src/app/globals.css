@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* DutyRoster uses a single, clean light theme so text is always dark on light
+   backgrounds — regardless of the operating system's dark-mode setting. */
+
+:root {
+  color-scheme: light; /* keep native inputs/dropdowns light, not OS-dark */
+  --background: #f8fafc; /* slate-50  */
+  --foreground: #0f172a; /* slate-900 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure form controls always read as dark text on white. */
+input,
+select,
+textarea {
+  color: var(--foreground);
+}
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8; /* slate-400 */
+}
