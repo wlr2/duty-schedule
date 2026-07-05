@@ -4,7 +4,12 @@ import { useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 
 type ApiMessage = { role: string; content: unknown };
-type Bubble = { role: "user" | "assistant"; text: string; actions?: string[] };
+type Bubble = {
+  role: "user" | "assistant";
+  text: string;
+  actions?: string[];
+  needsConfirm?: boolean;
+};
 
 const EXAMPLES = [
   "Set up NS guard duty: Sentry, PAC and VAC — 1 person each, rotate every 2h with 2h rest, covering 08:00–20:00. Everyone eligible.",
@@ -19,7 +24,7 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  async function send(text: string) {
+  async function send(text: string, confirmed = false) {
     const content = text.trim();
     if (!content || loading) return;
     setInput("");
@@ -31,7 +36,7 @@ export default function AssistantPage() {
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextApi }),
+        body: JSON.stringify({ messages: nextApi, confirmed }),
       });
       const data = await res.json();
       if (data.error) {
@@ -42,7 +47,12 @@ export default function AssistantPage() {
         }
         setBubbles((b) => [
           ...b,
-          { role: "assistant", text: data.reply || "Done.", actions: data.actions },
+          {
+            role: "assistant",
+            text: data.reply || "Done.",
+            actions: data.actions,
+            needsConfirm: data.needsConfirm === true,
+          },
         ]);
       }
     } catch {
@@ -113,6 +123,22 @@ export default function AssistantPage() {
                       ✓ {a}
                     </span>
                   ))}
+                </div>
+              )}
+              {b.needsConfirm && i === bubbles.length - 1 && !loading && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => send("Confirmed — apply the changes.", true)}
+                    className="rounded-lg bg-green-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                  >
+                    ✓ Yes, apply it
+                  </button>
+                  <button
+                    onClick={() => send("No — don't apply that.")}
+                    className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
                 </div>
               )}
             </div>
