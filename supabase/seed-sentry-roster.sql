@@ -86,11 +86,11 @@ begin
   delete from public.profiles        where org_id = v_org and role = 'employee';
 
   insert into public.shift_types (org_id, name, start_time, end_time, required_staff, color)
-    values (v_org, 'Sentry', '08:00', '10:00', 1, '#dc2626') returning id into v_sentry;
+    values (v_org, 'Sentry', '08:00', '10:00', 1, '#2563eb') returning id into v_sentry;
   insert into public.shift_types (org_id, name, start_time, end_time, required_staff, color)
-    values (v_org, 'PAC', '12:00', '14:00', 1, '#2563eb') returning id into v_pac;
+    values (v_org, 'PAC', '12:00', '14:00', 1, '#0d9488') returning id into v_pac;
   insert into public.shift_types (org_id, name, start_time, end_time, required_staff, color)
-    values (v_org, 'VAC', '16:00', '18:00', 1, '#16a34a') returning id into v_vac;
+    values (v_org, 'VAC', '16:00', '18:00', 1, '#b45309') returning id into v_vac;
 
   insert into public.schedule_periods (org_id, start_date, end_date, status)
     values (v_org, v_date, v_date, 'published') returning id into v_period;

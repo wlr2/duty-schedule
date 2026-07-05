@@ -1,15 +1,13 @@
-import Link from "next/link";
-import { AppHeader } from "@/components/app-header";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { leaveLabel, leaveStatus } from "@/lib/leave";
 import type { LeaveRequest } from "@/lib/types";
 import { reviewLeave } from "../actions";
 
 export default async function ManagerLeavePage() {
   const session = await requireManager();
   const profile = session.profile!;
-  const org = profile.organizations!;
 
   const supabase = await createClient();
   const [{ data: leaveData }, { data: people }] = await Promise.all([
@@ -27,13 +25,8 @@ export default async function ManagerLeavePage() {
   const history = leaves.filter((l) => l.status !== "pending");
 
   return (
-    <>
-      <AppHeader orgName={org.name} userName={profile.full_name ?? "Manager"} role="manager" />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        <Link href="/manager" className="text-sm text-slate-500 hover:text-slate-800">
-          ← Back to dashboard
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">Leave approvals</h1>
+    <div className="mx-auto w-full max-w-2xl">
+        <h1 className="text-2xl font-bold">Leave requests</h1>
 
         <h2 className="mt-6 text-sm font-medium uppercase tracking-wide text-slate-500">
           Pending ({pending.length})
@@ -41,26 +34,22 @@ export default async function ManagerLeavePage() {
         <div className="mt-2 space-y-2">
           {pending.length === 0 && (
             <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-              Nothing waiting for approval. 🎉
+              Nothing waiting for approval.
             </p>
           )}
           {pending.map((r) => (
-            <div
-              key={r.id}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3"
-            >
+            <div key={r.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium">
                     {nameById.get(r.employee_id) ?? "Unnamed"}
                     <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                      {r.type === "mc" ? "MC" : "Leave"}
+                      {leaveLabel(r.category)}
                     </span>
                   </p>
                   <p className="text-sm text-slate-600">
                     {formatDate(r.start_date)} – {formatDate(r.end_date)}
                   </p>
-                  {r.reason && <p className="text-sm text-slate-500">“{r.reason}”</p>}
                 </div>
                 <div className="flex gap-2">
                   <form action={reviewLeave}>
@@ -97,25 +86,19 @@ export default async function ManagerLeavePage() {
                   <div>
                     <p className="font-medium">{nameById.get(r.employee_id) ?? "Unnamed"}</p>
                     <p className="text-sm text-slate-600">
-                      {r.type === "mc" ? "MC" : "Leave"} · {formatDate(r.start_date)} –{" "}
-                      {formatDate(r.end_date)}
+                      {leaveLabel(r.category)} · {formatDate(r.start_date)} – {formatDate(r.end_date)}
                     </p>
                   </div>
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                      r.status === "approved"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-700"
-                    }`}
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${leaveStatus(r.status).cls}`}
                   >
-                    {r.status}
+                    {leaveStatus(r.status).label}
                   </span>
                 </div>
               ))}
             </div>
           </>
         )}
-      </main>
-    </>
+    </div>
   );
 }

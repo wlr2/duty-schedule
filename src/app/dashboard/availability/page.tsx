@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { SubmitButton } from "@/components/submit-button";
 import { requireProfile } from "@/lib/auth";
@@ -10,7 +11,7 @@ import { saveAvailability } from "../actions";
 const LEVELS: { value: PreferenceLevel; label: string }[] = [
   { value: "preferred", label: "Preferred" },
   { value: "available", label: "Available" },
-  { value: "unavailable", label: "Can't work" },
+  { value: "unavailable", label: "Unavailable" },
 ];
 
 export default async function AvailabilityPage() {
@@ -31,13 +32,13 @@ export default async function AvailabilityPage() {
     <>
       <AppHeader orgName={org.name} userName={profile.full_name ?? "You"} role="employee" />
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-800">
-          ← Back
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+          <ArrowLeft size={15} aria-hidden /> Back
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">My preferences</h1>
+        <h1 className="mt-2 text-2xl font-bold">Weekly availability</h1>
         <p className="mt-1 text-slate-600">
-          Tell us which days you prefer to work or can&apos;t work. The scheduler
-          uses this when building the roster.
+          Set which days you can normally work. The scheduler uses this. To take a
+          specific day off, submit a leave request.
         </p>
 
         <form action={saveAvailability} className="mt-6 space-y-2">
@@ -64,7 +65,7 @@ export default async function AvailabilityPage() {
             );
           })}
           <div className="pt-2">
-            <SubmitButton>Save preferences</SubmitButton>
+            <SubmitButton>Save availability</SubmitButton>
           </div>
         </form>
       </main>

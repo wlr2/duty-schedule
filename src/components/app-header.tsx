@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { logoutAction } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
+import { Logo } from "@/components/logo";
 import type { Role } from "@/lib/types";
 
 export async function AppHeader({
@@ -33,19 +35,17 @@ export async function AppHeader({
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
         <Link href={home} className="flex items-center gap-2 font-semibold">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-slate-900 text-sm text-white">
-            D
-          </span>
+          <Logo size={28} />
           {orgName}
         </Link>
         <div className="flex items-center gap-3 text-sm">
           {/* Notification bell */}
           <Link
             href="/notifications"
-            className="relative rounded-lg p-1.5 hover:bg-slate-100"
+            className="relative rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
             aria-label="Notifications"
           >
-            <span className="text-lg">🔔</span>
+            <Bell size={20} aria-hidden />
             {unread > 0 && (
               <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
                 {unread > 9 ? "9+" : unread}

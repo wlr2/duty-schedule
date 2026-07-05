@@ -1,64 +1,80 @@
 // ============================================================================
-// Scheduling engine
+// Coverage scheduling engine
 // ----------------------------------------------------------------------------
-// A deterministic, fair roster generator. It GUARANTEES the hard rules and
-// optimizes the soft goals with a greedy, balance-aware heuristic:
+// Guarantees CONTINUOUS CONCURRENT coverage: every position must have its
+// required headcount of people on duty across its whole window. People rotate
+// with rest, so a post is never left empty even while someone is on break.
 //
-//   Hard rules (never violated):
-//     - An employee works at most one shift per day.
-//     - An employee is never scheduled on a day they marked "unavailable".
-//     - An employee is never scheduled while on approved leave/MC.
+// The same model serves very different worlds:
+//   - Guard duty:  Sentry/PAC/VAC, headcount 1 each, rotate every 2h, 2h rest.
+//   - Restaurant:  Dishwasher headcount 5, one continuous 11:00-22:00 shift.
 //
-//   Soft goals (optimized, best-effort):
-//     - Fill every shift's required staff count (leaves the slot OPEN if it
-//       genuinely can't be filled, rather than breaking a hard rule).
-//     - Move each person toward their weekly target hours.
-//     - Prefer days the employee marked "preferred".
-//     - Spread work fairly (whoever is furthest below their target goes first).
+// Hard rules (never violated):
+//   - One person is in at most one position at any instant (no double-booking).
+//   - A person only works a position they're eligible for.
+//   - Never scheduled when unavailable (day off / day-of-week unavailable).
+//   - Minimum rest is respected between a person's work blocks.
+//   - Daily hour cap respected.
 //
-// This is intentionally a transparent heuristic (not a black box). It can be
-// swapped for a constraint solver (e.g. OR-Tools) later without changing callers.
+// Soft goals: fill every slot (else it's a GAP), honour "preferred" days, and
+// spread work fairly (least-worked goes first).
 // ============================================================================
 
-import { shiftHours } from "./format";
-import type { PreferenceLevel } from "./types";
+export function timeStrToMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
 
-export interface SchedulerShift {
+export function minToTimeStr(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+}
+
+export type DayPreference = "preferred" | "available" | "unavailable";
+
+export interface EnginePosition {
   id: string;
   name: string;
-  start_time: string;
-  end_time: string;
-  required_staff: number;
+  color: string;
+  startMin: number; // coverage window
+  endMin: number;
+  headcount: number; // how many people on duty at once
+  blockMinutes: number; // rotation length; <=0 means one block across the window
+  minRestMinutes: number;
+  eligible: Set<string> | null; // eligible employee ids; null = everyone
 }
 
-export interface SchedulerEmployee {
+export interface EngineEmployee {
   id: string;
-  full_name: string | null;
-  target_hours_per_week: number;
-  /** day_of_week (0=Sun) -> preference. Missing day defaults to "available". */
-  availability: Record<number, PreferenceLevel>;
-  /** ISO dates (YYYY-MM-DD) the employee cannot work (approved leave/MC). */
+  name: string;
+  availabilityByDow: Record<number, DayPreference>;
   unavailableDates: Set<string>;
+  maxMinutesPerDay: number;
 }
 
-export interface PlannedAssignment {
-  work_date: string; // YYYY-MM-DD
-  shift_type_id: string;
-  employee_id: string | null; // null = couldn't be filled (open slot)
+export interface CoverageAssignment {
+  date: string;
+  positionId: string;
+  employeeId: string | null; // null = unfilled gap
+  startMin: number;
+  endMin: number;
 }
 
-export interface ScheduleResult {
-  assignments: PlannedAssignment[];
-  /** Per-employee scheduled hours, for display/validation. */
-  hoursByEmployee: Record<string, number>;
-  openSlots: number;
+export interface CoverageResult {
+  assignments: CoverageAssignment[];
+  gaps: number;
+  minutesByEmployee: Record<string, number>;
 }
 
-const PREF_WEIGHT: Record<PreferenceLevel, number> = {
-  preferred: 2,
-  available: 1,
-  unavailable: -1, // hard-excluded before scoring, but defined for completeness
-};
+interface Slot {
+  positionId: string;
+  start: number;
+  end: number;
+  headcount: number;
+  eligible: Set<string> | null;
+  difficulty: number; // lower pool / higher headcount = harder, fill first
+}
 
 /** Inclusive list of ISO dates between start and end. */
 export function datesInRange(startISO: string, endISO: string): string[] {
@@ -72,108 +88,124 @@ export function datesInRange(startISO: string, endISO: string): string[] {
   return out;
 }
 
-export function generateSchedule(input: {
-  startDate: string;
-  endDate: string;
-  shifts: SchedulerShift[];
-  employees: SchedulerEmployee[];
-}): ScheduleResult {
-  const { startDate, endDate, shifts, employees } = input;
-  const dates = datesInRange(startDate, endDate);
-  const periodDays = dates.length || 1;
+export function generateCoverageSchedule(input: {
+  dates: string[];
+  positions: EnginePosition[];
+  employees: EngineEmployee[];
+}): CoverageResult {
+  const { dates, positions, employees } = input;
+  const posById = new Map(positions.map((p) => [p.id, p]));
 
-  // Convert weekly targets into a target for this whole period.
-  const targetHours: Record<string, number> = {};
-  const scheduledHours: Record<string, number> = {};
-  for (const e of employees) {
-    targetHours[e.id] = (e.target_hours_per_week * periodDays) / 7;
-    scheduledHours[e.id] = 0;
-  }
-
-  // Track who is already working on a given date (one shift per day).
-  const workingOn: Record<string, Set<string>> = {};
-  for (const date of dates) workingOn[date] = new Set();
-
-  const assignments: PlannedAssignment[] = [];
-  let openSlots = 0;
+  const assignments: CoverageAssignment[] = [];
+  let gaps = 0;
+  const minutesByEmployee: Record<string, number> = {};
+  for (const e of employees) minutesByEmployee[e.id] = 0;
 
   for (const date of dates) {
     const dow = new Date(date + "T00:00:00").getDay();
 
-    for (const shift of shifts) {
-      const length = shiftHours(shift.start_time, shift.end_time);
+    // Per-day per-employee state.
+    const intervals: Record<string, { s: number; e: number; pos: string }[]> = {};
+    const dayMinutes: Record<string, number> = {};
+    for (const e of employees) {
+      intervals[e.id] = [];
+      dayMinutes[e.id] = 0;
+    }
 
-      for (let slot = 0; slot < shift.required_staff; slot++) {
-        const candidate = pickBest({
-          date,
-          dow,
-          length,
-          employees,
-          workingOn,
-          scheduledHours,
-          targetHours,
+    // Tile every position's window into rotation blocks -> slots to fill.
+    const slots: Slot[] = [];
+    for (const p of positions) {
+      const block =
+        !p.blockMinutes || p.blockMinutes <= 0 ? p.endMin - p.startMin : p.blockMinutes;
+      const poolSize = p.eligible ? p.eligible.size : employees.length;
+      for (let s = p.startMin; s < p.endMin; s += block) {
+        const e = Math.min(s + block, p.endMin);
+        slots.push({
+          positionId: p.id,
+          start: s,
+          end: e,
+          headcount: p.headcount,
+          eligible: p.eligible,
+          difficulty: poolSize / Math.max(1, p.headcount),
         });
+      }
+    }
 
-        if (candidate) {
-          assignments.push({
-            work_date: date,
-            shift_type_id: shift.id,
-            employee_id: candidate.id,
-          });
-          workingOn[date].add(candidate.id);
-          scheduledHours[candidate.id] += length;
-        } else {
-          assignments.push({
-            work_date: date,
-            shift_type_id: shift.id,
-            employee_id: null,
-          });
-          openSlots++;
+    // Earliest first; within a time, fill the hardest-to-staff slots first.
+    slots.sort((a, b) => a.start - b.start || a.difficulty - b.difficulty);
+
+    for (const slot of slots) {
+      const p = posById.get(slot.positionId)!;
+      const len = slot.end - slot.start;
+
+      // HARD rules: eligible, available, not double-booked, under daily cap.
+      const base = employees.filter((emp) => {
+        if (slot.eligible && !slot.eligible.has(emp.id)) return false;
+        if (emp.unavailableDates.has(date)) return false;
+        if ((emp.availabilityByDow[dow] ?? "available") === "unavailable") return false;
+        if (dayMinutes[emp.id] + len > emp.maxMinutesPerDay) return false;
+        for (const iv of intervals[emp.id]) {
+          if (slot.start < iv.e && slot.end > iv.s) return false; // overlap (hard)
         }
+        return true;
+      });
+
+      // Rest is a SOFT preference: prefer rested people, but use a tired person
+      // rather than leave the post empty. Coverage always wins over rest.
+      const restOk = (emp: EngineEmployee) => {
+        for (const iv of intervals[emp.id]) {
+          if (iv.s >= slot.end && iv.s - slot.end < p.minRestMinutes) return false;
+          if (iv.e <= slot.start && slot.start - iv.e < p.minRestMinutes) return false;
+        }
+        return true;
+      };
+      const preferred = (emp: EngineEmployee) =>
+        emp.availabilityByDow[dow] === "preferred" ? 0 : 1;
+      // Did they just finish this same position? Keep them on for continuity.
+      const continues = (emp: EngineEmployee) =>
+        intervals[emp.id].some((iv) => iv.pos === slot.positionId && iv.e === slot.start)
+          ? 0
+          : 1;
+
+      const rested = base
+        .filter(restOk)
+        .sort(
+          (a, b) =>
+            preferred(a) - preferred(b) || minutesByEmployee[a.id] - minutesByEmployee[b.id],
+        );
+      const tired = base
+        .filter((e) => !restOk(e))
+        .sort(
+          (a, b) =>
+            continues(a) - continues(b) || minutesByEmployee[a.id] - minutesByEmployee[b.id],
+        );
+
+      const chosen = [...rested, ...tired].slice(0, slot.headcount);
+      for (const emp of chosen) {
+        assignments.push({
+          date,
+          positionId: slot.positionId,
+          employeeId: emp.id,
+          startMin: slot.start,
+          endMin: slot.end,
+        });
+        intervals[emp.id].push({ s: slot.start, e: slot.end, pos: slot.positionId });
+        dayMinutes[emp.id] += len;
+        minutesByEmployee[emp.id] += len;
+      }
+
+      for (let i = chosen.length; i < slot.headcount; i++) {
+        assignments.push({
+          date,
+          positionId: slot.positionId,
+          employeeId: null,
+          startMin: slot.start,
+          endMin: slot.end,
+        });
+        gaps++;
       }
     }
   }
 
-  return { assignments, hoursByEmployee: scheduledHours, openSlots };
-}
-
-function pickBest(ctx: {
-  date: string;
-  dow: number;
-  length: number;
-  employees: SchedulerEmployee[];
-  workingOn: Record<string, Set<string>>;
-  scheduledHours: Record<string, number>;
-  targetHours: Record<string, number>;
-}): SchedulerEmployee | null {
-  const { date, dow, length, employees, workingOn, scheduledHours, targetHours } = ctx;
-
-  let best: SchedulerEmployee | null = null;
-  let bestScore = -Infinity;
-
-  for (const e of employees) {
-    // ---- Hard rules ----
-    if (workingOn[date].has(e.id)) continue; // already working today
-    if (e.unavailableDates.has(date)) continue; // on leave/MC
-    const pref = e.availability[dow] ?? "available";
-    if (pref === "unavailable") continue; // marked unavailable
-
-    // ---- Soft scoring ----
-    const remaining = targetHours[e.id] - scheduledHours[e.id];
-    // Heavily penalize going far over target so hours stay near goal.
-    const overage = scheduledHours[e.id] + length - targetHours[e.id];
-    const overPenalty = overage > 0 ? overage * 1.5 : 0;
-
-    const score =
-      remaining + // furthest-below-target goes first (fairness + hit targets)
-      PREF_WEIGHT[pref] * 3 - // honor preferred days
-      overPenalty;
-
-    if (score > bestScore) {
-      bestScore = score;
-      best = e;
-    }
-  }
-
-  return best;
+  return { assignments, gaps, minutesByEmployee };
 }

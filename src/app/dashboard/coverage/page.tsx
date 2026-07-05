@@ -1,16 +1,12 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatTime } from "@/lib/format";
 import type { CoverageRequest } from "@/lib/types";
 import { claimCoverage } from "../actions";
-
-interface AssignmentInfo {
-  id: string;
-  work_date: string;
-  shift_types: { name: string; start_time: string; end_time: string } | null;
-}
 
 export default async function CoveragePage() {
   const session = await requireProfile();
@@ -18,52 +14,40 @@ export default async function CoveragePage() {
   const org = profile.organizations!;
 
   const supabase = await createClient();
-  const { data: covData } = await supabase
-    .from("coverage_requests")
-    .select("*")
-    .eq("org_id", profile.org_id)
-    .order("created_at", { ascending: false });
-
-  const coverage = (covData ?? []) as CoverageRequest[];
-  const assignmentIds = coverage.map((c) => c.assignment_id).filter(Boolean) as string[];
-
-  const [{ data: assigns }, { data: people }] = await Promise.all([
-    assignmentIds.length
-      ? supabase
-          .from("assignments")
-          .select("id, work_date, shift_types(name,start_time,end_time)")
-          .in("id", assignmentIds)
-      : Promise.resolve({ data: [] as AssignmentInfo[] }),
+  const [{ data: covData }, { data: people }] = await Promise.all([
+    supabase
+      .from("coverage_requests")
+      .select("*")
+      .eq("org_id", profile.org_id)
+      .order("created_at", { ascending: false }),
     supabase.from("profiles").select("id, full_name").eq("org_id", profile.org_id),
   ]);
 
-  const assignmentById = new Map(
-    ((assigns ?? []) as unknown as AssignmentInfo[]).map((a) => [a.id, a]),
-  );
+  const coverage = (covData ?? []) as CoverageRequest[];
   const nameById = new Map((people ?? []).map((p) => [p.id, p.full_name]));
-
   const open = coverage.filter((c) => c.status === "open");
   const resolved = coverage.filter((c) => c.status !== "open");
 
-  function shiftLabel(c: CoverageRequest) {
-    const a = c.assignment_id ? assignmentById.get(c.assignment_id) : null;
-    if (!a) return "A shift";
-    return `${formatDate(a.work_date)} · ${a.shift_types?.name ?? "Shift"} (${formatTime(
-      a.shift_types?.start_time,
-    )}–${formatTime(a.shift_types?.end_time)})`;
+  function slotLabel(c: CoverageRequest) {
+    const when = c.work_date ? formatDate(c.work_date) : "A shift";
+    const pos = c.position_label ? ` · ${c.position_label}` : "";
+    const time =
+      c.start_time && c.end_time
+        ? ` (${formatTime(c.start_time)}–${formatTime(c.end_time)})`
+        : "";
+    return `${when}${pos}${time}`;
   }
 
   return (
     <>
       <AppHeader orgName={org.name} userName={profile.full_name ?? "You"} role={profile.role} />
+      <RealtimeRefresh orgId={profile.org_id!} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-800">
-          ← Back
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+          <ArrowLeft size={15} aria-hidden /> Back
         </Link>
         <h1 className="mt-2 text-2xl font-bold">Coverage requests</h1>
-        <p className="mt-1 text-slate-600">
-          Open requests from the team. Tap “I’ll cover this” to take a shift.
-        </p>
+        <p className="mt-1 text-slate-600">Open shifts that need someone. Tap to take one.</p>
 
         <h2 className="mt-6 text-sm font-medium uppercase tracking-wide text-slate-500">
           Open ({open.length})
@@ -71,7 +55,7 @@ export default async function CoveragePage() {
         <div className="mt-2 space-y-2">
           {open.length === 0 && (
             <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-              No open coverage requests right now.
+              Nothing needs cover right now.
             </p>
           )}
           {open.map((c) => {
@@ -82,10 +66,10 @@ export default async function CoveragePage() {
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3"
               >
                 <div>
-                  <p className="font-medium">{shiftLabel(c)}</p>
+                  <p className="font-medium">{slotLabel(c)}</p>
                   <p className="text-sm text-slate-500">
-                    Requested by {mine ? "you" : nameById.get(c.requester_id) ?? "someone"}
-                    {c.note ? ` · “${c.note}”` : ""}
+                    Freed by {mine ? "you" : nameById.get(c.requester_id) ?? "someone"}
+                    {c.note ? ` · ${c.note}` : ""}
                   </p>
                 </div>
                 {mine ? (
@@ -96,7 +80,7 @@ export default async function CoveragePage() {
                   <form action={claimCoverage}>
                     <input type="hidden" name="coverage_id" value={c.id} />
                     <button className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700">
-                      I’ll cover this
+                      I&apos;ll cover this
                     </button>
                   </form>
                 )}
@@ -116,7 +100,7 @@ export default async function CoveragePage() {
                   key={c.id}
                   className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
                 >
-                  <p className="font-medium">{shiftLabel(c)}</p>
+                  <p className="font-medium">{slotLabel(c)}</p>
                   <span className="text-sm text-green-700">
                     Covered by {c.claimed_by ? nameById.get(c.claimed_by) ?? "a teammate" : "—"}
                   </span>

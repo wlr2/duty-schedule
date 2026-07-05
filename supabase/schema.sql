@@ -63,10 +63,16 @@ create table if not exists public.assignments (
   shift_type_id uuid references public.shift_types (id) on delete set null,
   employee_id   uuid references public.profiles (id) on delete set null,
   work_date     date not null,
+  start_time    time,  -- optional per-assignment block time (rotating-post rosters)
+  end_time      time,
   status        text not null default 'scheduled'
                   check (status in ('scheduled', 'open', 'swapped')),
   created_at    timestamptz not null default now()
 );
+
+-- For databases created before these columns existed:
+alter table public.assignments add column if not exists start_time time;
+alter table public.assignments add column if not exists end_time   time;
 
 create table if not exists public.leave_requests (
   id          uuid primary key default gen_random_uuid(),

@@ -33,6 +33,18 @@ export function formatDate(d: string | Date): string {
   });
 }
 
+/** "08:00:00" -> 8, "08:30" -> 8.5 */
+export function timeToHours(t: string | null | undefined): number | null {
+  if (!t) return null;
+  const [h, m] = t.split(":").map(Number);
+  return h + (m || 0) / 60;
+}
+
+/** 8 -> "0800" */
+export function hourLabel(h: number): string {
+  return String(Math.floor(h)).padStart(2, "0") + "00";
+}
+
 export const DAY_NAMES = [
   "Sunday",
   "Monday",

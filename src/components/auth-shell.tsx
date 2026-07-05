@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 export function AuthShell({
   title,
@@ -13,9 +14,7 @@ export function AuthShell({
     <main className="flex flex-1 items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2 font-semibold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white">
-            D
-          </span>
+          <Logo size={32} />
           DutyRoster
         </Link>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

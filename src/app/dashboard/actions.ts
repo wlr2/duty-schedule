@@ -5,6 +5,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { notifyUsers } from "@/lib/notify";
 import { formatDate } from "@/lib/format";
+import { isLeaveCategory, leaveLabel } from "@/lib/leave";
 import type { PreferenceLevel } from "@/lib/types";
 
 export async function saveAvailability(formData: FormData) {
@@ -31,23 +32,21 @@ export async function submitLeave(formData: FormData) {
   const orgId = session.profile!.org_id!;
   const name = session.profile!.full_name ?? "A team member";
 
-  const type = String(formData.get("type") ?? "leave") === "mc" ? "mc" : "leave";
+  const category = String(formData.get("category") ?? "");
   const start = String(formData.get("start_date") ?? "");
   const end = String(formData.get("end_date") ?? "");
-  const reason = String(formData.get("reason") ?? "").trim() || null;
-  if (!start || !end || end < start) return;
+  if (!isLeaveCategory(category) || !start || !end || end < start) return;
 
   const supabase = await createClient();
   await supabase.from("leave_requests").insert({
     org_id: orgId,
     employee_id: session.userId,
-    type,
+    category,
     start_date: start,
     end_date: end,
-    reason,
   });
 
-  // Notify all managers in the org.
+  // Always notify every manager so they can approve.
   const { data: managers } = await supabase
     .from("profiles")
     .select("id")
@@ -58,8 +57,8 @@ export async function submitLeave(formData: FormData) {
     supabase,
     (managers ?? []).map((m) => m.id),
     {
-      title: `New ${type === "mc" ? "MC" : "leave"} request`,
-      body: `${name}: ${formatDate(start)} – ${formatDate(end)}`,
+      title: "New leave request",
+      body: `${name} — ${leaveLabel(category)}: ${formatDate(start)} – ${formatDate(end)}`,
       link: "/manager/leave",
     },
   );

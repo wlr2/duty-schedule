@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CalendarClock, Repeat, Settings, Stethoscope } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { Logo } from "@/components/logo";
 
 export default async function Home() {
   // Once connected and signed in, send people straight to their dashboard.
@@ -16,9 +18,7 @@ export default async function Home() {
     <main className="flex-1">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2 font-semibold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white">
-            D
-          </span>
+          <Logo size={32} />
           DutyRoster
         </div>
         {isSupabaseConfigured && (
@@ -68,7 +68,12 @@ export default async function Home() {
         <div className="mt-16 grid gap-4 text-left sm:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="text-2xl">{f.icon}</div>
+              <span
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg"
+                style={{ backgroundColor: f.tint, color: f.color }}
+              >
+                <f.Icon size={22} aria-hidden />
+              </span>
               <h3 className="mt-3 font-semibold">{f.title}</h3>
               <p className="mt-1 text-sm text-slate-600">{f.body}</p>
             </div>
@@ -81,17 +86,23 @@ export default async function Home() {
 
 const FEATURES = [
   {
-    icon: "🤖",
+    Icon: CalendarClock,
+    color: "#1d4ed8",
+    tint: "#dbeafe",
     title: "Auto-scheduling",
     body: "Generates rosters that respect each person's hours, days off, and preferences — no double-booking.",
   },
   {
-    icon: "🩺",
+    Icon: Stethoscope,
+    color: "#0f766e",
+    tint: "#ccfbf1",
     title: "Leave & MC",
     body: "Staff submit leave or medical certificates in-app; managers approve with a tap and get notified instantly.",
   },
   {
-    icon: "🔁",
+    Icon: Repeat,
+    color: "#b45309",
+    tint: "#fef3c7",
     title: "Instant cover",
     body: "Going on leave? Broadcast a cover request and the whole team is notified in real time.",
   },
@@ -100,8 +111,8 @@ const FEATURES = [
 function SetupCard() {
   return (
     <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-left">
-      <h2 className="text-lg font-semibold text-amber-900">
-        ⚙️ One quick setup step left
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-amber-900">
+        <Settings size={18} aria-hidden /> One quick setup step left
       </h2>
       <p className="mt-2 text-sm text-amber-800">
         The app is running! To turn on accounts and data, connect a free

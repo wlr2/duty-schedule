@@ -16,9 +16,15 @@ export interface Profile {
   full_name: string | null;
   role: Role;
   target_hours_per_week: number;
+  // Compensation scaffolding (modular — payroll computation added later).
+  pay_type: string | null; // 'hourly' | 'salary' | null
+  pay_rate: number | null;
+  overtime_multiplier: number | null;
   created_at: string;
 }
 
+// A "position" (Sentry, PAC, Dishwasher, Server, …). required_staff is the
+// concurrent headcount; start/end is the coverage window.
 export interface ShiftType {
   id: string;
   org_id: string;
@@ -26,7 +32,25 @@ export interface ShiftType {
   start_time: string; // "HH:MM:SS"
   end_time: string;
   color: string;
-  required_staff: number;
+  required_staff: number; // concurrent headcount
+  block_minutes: number | null; // rotation length; null = one continuous shift
+  min_rest_minutes: number; // rest between a person's blocks
+  created_at: string;
+}
+
+export interface PositionMember {
+  id: string;
+  org_id: string;
+  position_id: string;
+  employee_id: string;
+}
+
+export interface AvailabilityException {
+  id: string;
+  org_id: string;
+  employee_id: string;
+  work_date: string;
+  reason: string | null;
   created_at: string;
 }
 
@@ -69,6 +93,7 @@ export interface LeaveRequest {
   id: string;
   org_id: string;
   employee_id: string;
+  category: string | null; // medical | overseas | compassionate | annual | other
   type: "leave" | "mc";
   start_date: string;
   end_date: string;
@@ -87,6 +112,12 @@ export interface CoverageRequest {
   note: string | null;
   status: "open" | "claimed" | "closed";
   claimed_by: string | null;
+  // Self-describing snapshot for the master-sheet log.
+  work_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  position_label: string | null;
+  resolved_at: string | null;
   created_at: string;
 }
 
