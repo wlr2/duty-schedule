@@ -83,20 +83,34 @@ export default async function RepairPreviewPage({
         )}
       </div>
 
-      {/* Rule exceptions the fix needed */}
-      {proposal.relaxations.length > 0 && (
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-semibold">Heads up — this fix bends {proposal.relaxations.length} rule(s):</p>
-          <ul className="mt-1 list-inside list-disc">
-            {proposal.relaxations.slice(0, 6).map((r, i) => (
-              <li key={i}>
-                {r.employeeName} {RULE_LABEL[r.rule] ?? r.rule} on {formatDate(r.date)} (
-                {r.positionName})
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Rule exceptions the fix needed (grouped: same person + rule + day) */}
+      {proposal.relaxations.length > 0 &&
+        (() => {
+          const grouped = new Map<string, { text: string; count: number }>();
+          for (const r of proposal.relaxations) {
+            const key = `${r.employeeName}|${r.rule}|${r.date}|${r.positionName}`;
+            const text = `${r.employeeName} ${RULE_LABEL[r.rule] ?? r.rule} on ${formatDate(r.date)} (${r.positionName})`;
+            const g = grouped.get(key);
+            if (g) g.count++;
+            else grouped.set(key, { text, count: 1 });
+          }
+          const items = [...grouped.values()];
+          return (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-semibold">
+                Heads up — this fix bends {items.length} rule(s):
+              </p>
+              <ul className="mt-1 list-inside list-disc">
+                {items.slice(0, 6).map((g, i) => (
+                  <li key={i}>
+                    {g.text}
+                    {g.count > 1 && ` — ${g.count} blocks`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
 
       {/* Remaining gaps + plain-English reasons */}
       {proposal.gaps.length > 0 && (

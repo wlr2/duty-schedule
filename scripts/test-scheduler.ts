@@ -218,5 +218,29 @@ function fullyCovered(r: ReturnType<typeof generateCoverageSchedule>, positionId
   check("night: 4 nights rotate across all 4 people", assignees.size === 4);
 }
 
+// ---- 12. REPAIR SPREAD: an absent person's blocks split across the team ----
+//      (the "Jun Hao takes all 3" bug: when every candidate is equally tired,
+//      continuity used to chain one person through every freed slot).
+{
+  const positions = [pos("Watchpost", "08:00", "14:00", 1, 120, 600)]; // rest rule bites
+  const employees = ["h1", "h2", "h3"].map((id) => emp(id));
+  // Everyone already worked a locked early block -> equal day minutes, and
+  // every further block violates the 10h rest rule for all of them equally.
+  const locked = ["h1", "h2", "h3"].map((id) => ({
+    date: DATE,
+    positionId: "EarlyTask",
+    employeeId: id,
+    startMin: timeStrToMin("06:00"),
+    endMin: timeStrToMin("07:00"),
+  }));
+  const r = generateCoverageSchedule({ dates: [DATE], positions, employees, locked });
+  const who = r.assignments.filter((a) => a.employeeId).map((a) => a.employeeId);
+  check("spread: all 3 freed blocks are covered", r.gaps === 0 && who.length === 3);
+  check(
+    "spread: blocks split across 3 people (not chained onto one)",
+    new Set(who).size === 3,
+  );
+}
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} TEST(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

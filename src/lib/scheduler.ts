@@ -374,17 +374,20 @@ export function generateCoverageSchedule(input: {
       }
 
       // Fairness ordering. Tier first (avoid relaxing at all if possible),
-      // then preferred day, least total hours, least night/weekend load.
+      // then SPREAD THE LOAD: fewest minutes TODAY wins, so extra work (e.g.
+      // covering an absent teammate) splits across several people instead of
+      // piling onto whoever happened to be adjacent. Then preferred day,
+      // least total hours, least night/weekend load; rotation continuity is
+      // only a final tie-break.
       const night = isNightSlot(slot.start, slot.end);
       const continues = (emp: EngineEmployee) =>
         st[emp.id].intervals.some((iv) => iv.pos === slot.positionId && iv.e === sAbs) ? 0 : 1;
       const sorted = [...usable].sort((a, b) => {
         const t = tierOf.get(a.id)! - tierOf.get(b.id)!;
         if (t !== 0) return t;
-        if (tierOf.get(a.id)! >= 2) {
-          const c = continues(a) - continues(b); // rotation continuity for tired staff
-          if (c !== 0) return c;
-        }
+        const dayA = st[a.id].dayMin.get(date) ?? 0;
+        const dayB = st[b.id].dayMin.get(date) ?? 0;
+        if (dayA !== dayB) return dayA - dayB;
         const prefA = a.availabilityByDow[dow] === "preferred" ? 0 : 1;
         const prefB = b.availabilityByDow[dow] === "preferred" ? 0 : 1;
         if (prefA !== prefB) return prefA - prefB;
@@ -393,6 +396,8 @@ export function generateCoverageSchedule(input: {
           return st[a.id].nightCount - st[b.id].nightCount;
         if (isWeekend && st[a.id].weekendCount !== st[b.id].weekendCount)
           return st[a.id].weekendCount - st[b.id].weekendCount;
+        const c = continues(a) - continues(b); // rotation continuity as tie-break only
+        if (c !== 0) return c;
         return a.name.localeCompare(b.name);
       });
 
