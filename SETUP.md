@@ -45,6 +45,21 @@ This is what powers logins and saves your data. It's free and takes ~5 minutes.
 3. Open the file `supabase/schema.sql` from this project, copy **everything** in
    it, and paste it into the editor.
 4. Click **Run** (bottom right). You should see "Success. No rows returned."
+5. Repeat (New query → paste all → Ctrl+A → Run) for each migration file, **in
+   this order**:
+   - `supabase/02-coverage-function.sql`
+   - `supabase/03-assignment-times.sql`
+   - `supabase/04-positions-coverage.sql`
+   - `supabase/05-leave-and-profile.sql` (leave reasons + pay fields)
+   - `supabase/06-scheduling-rework.sql` (coverage requirements, versions groundwork)
+   - `supabase/07-role-protection.sql` (security: blocks self-promotion)
+   - `supabase/08-push-delivery.sql` (browser push delivery)
+   - `supabase/09-schedule-versions.sql` (auto-fix / publish / broadcast loop)
+   - `supabase/10-assistant-memory.sql` (AI assistant persistent memory)
+
+   Tip: if the editor has text selected when you press Run, it only runs the
+   selection — press **Ctrl+A** first so the whole file runs. Each migration
+   has a matching `-down.sql` file that reverses it.
 
 ### 2b.5. Turn off email confirmation (for now)
 
