@@ -73,7 +73,7 @@ export default async function ManagerCoveragePage() {
         </p>
 
         {/* Detector output: understaffed slots vs the coverage floor (next 14 days). */}
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-card">
           <div className="border-b border-slate-100 px-4 py-2.5">
             <h2 className="text-sm font-semibold">
               Understaffed slots — next 14 days{" "}
@@ -118,7 +118,7 @@ export default async function ManagerCoveragePage() {
           )}
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-card">
           {coverage.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-slate-500">
               No coverage activity yet.

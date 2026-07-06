@@ -56,7 +56,7 @@ export default async function Home() {
             </Link>
             <Link
               href="/login"
-              className="rounded-lg border border-slate-300 bg-white px-6 py-3 font-medium hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 bg-card px-6 py-3 font-medium hover:bg-slate-100"
             >
               Log in
             </Link>
@@ -67,7 +67,7 @@ export default async function Home() {
 
         <div className="mt-16 grid gap-4 text-left sm:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-xl border border-slate-200 bg-white p-5">
+            <div key={f.title} className="rounded-xl border border-slate-200 bg-card p-5">
               <span
                 className="inline-flex h-11 w-11 items-center justify-center rounded-lg"
                 style={{ backgroundColor: f.tint, color: f.color }}

@@ -5,7 +5,7 @@ import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { notifyUsers } from "@/lib/notify";
 import { detectGaps } from "@/lib/gap-detector";
-import { formatDate } from "@/lib/format";
+import { DAY_NAMES, formatDate } from "@/lib/format";
 import { leaveLabel } from "@/lib/leave";
 
 export async function createPosition(formData: FormData) {
@@ -190,6 +190,92 @@ export async function reviewLeave(formData: FormData) {
       body: dateRange,
       link: "/dashboard/leave",
       type: "leave_decision",
+    });
+  }
+
+  revalidatePath("/manager/leave");
+  revalidatePath("/manager/coverage");
+}
+
+/** Approve / decline an availability change (weekly day or specific date). */
+export async function reviewAvailability(formData: FormData) {
+  const session = await requireManager();
+  const orgId = session.profile!.org_id!;
+  const kind = String(formData.get("kind") ?? ""); // 'weekly' | 'exception'
+  const id = String(formData.get("id") ?? "");
+  const decision = String(formData.get("decision") ?? "") === "approved" ? "approved" : "rejected";
+  if (!id || (kind !== "weekly" && kind !== "exception")) return;
+
+  const supabase = await createClient();
+
+  if (kind === "weekly") {
+    const { data: row } = await supabase
+      .from("employee_preferences")
+      .select("employee_id, day_of_week")
+      .eq("id", id)
+      .eq("org_id", orgId)
+      .single();
+    if (!row) return;
+    if (decision === "approved") {
+      await supabase.from("employee_preferences").update({ status: "approved" }).eq("id", id);
+    } else {
+      // Declined: the day goes back to plain "available".
+      await supabase
+        .from("employee_preferences")
+        .update({ preference: "available", status: "approved" })
+        .eq("id", id);
+    }
+    await notifyUsers(supabase, [row.employee_id], {
+      title:
+        decision === "approved"
+          ? `Unavailable on ${DAY_NAMES[row.day_of_week]}s — approved`
+          : `Unavailable on ${DAY_NAMES[row.day_of_week]}s — declined`,
+      body:
+        decision === "approved"
+          ? "Future schedules won't roster you that day."
+          : "Talk to your manager if this is a problem.",
+      link: "/dashboard/availability",
+      type: "availability_decision",
+    });
+  } else {
+    const { data: row } = await supabase
+      .from("availability_exceptions")
+      .select("employee_id, work_date")
+      .eq("id", id)
+      .eq("org_id", orgId)
+      .single();
+    if (!row) return;
+    await supabase
+      .from("availability_exceptions")
+      .update({ status: decision })
+      .eq("id", id);
+    if (decision === "approved") {
+      // Free any shifts they already hold that day, then sweep for gaps so
+      // the actionable fix-schedule flow kicks in.
+      await supabase
+        .from("assignments")
+        .update({ employee_id: null, status: "open" })
+        .eq("org_id", orgId)
+        .eq("employee_id", row.employee_id)
+        .eq("work_date", row.work_date)
+        .neq("status", "open");
+      try {
+        await detectGaps(supabase, orgId, row.work_date, row.work_date);
+      } catch {
+        /* non-fatal */
+      }
+    }
+    await notifyUsers(supabase, [row.employee_id], {
+      title:
+        decision === "approved"
+          ? `Day off on ${formatDate(row.work_date)} — approved`
+          : `Day off on ${formatDate(row.work_date)} — declined`,
+      body:
+        decision === "approved"
+          ? "You won't be scheduled that day."
+          : "You're still expected that day — talk to your manager.",
+      link: "/dashboard/availability",
+      type: "availability_decision",
     });
   }
 

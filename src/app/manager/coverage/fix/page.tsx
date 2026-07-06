@@ -68,7 +68,7 @@ export default async function FixSchedulePage() {
       </p>
 
       {groups.length === 0 && (
-        <p className="mt-6 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+        <p className="mt-6 rounded-xl border border-slate-200 bg-card px-4 py-8 text-center text-sm text-slate-500">
           No unfilled slots in the next two weeks. Nothing to fix. 🎉
         </p>
       )}
@@ -76,7 +76,7 @@ export default async function FixSchedulePage() {
       {groups.map(({ period, gaps: periodGaps }) => (
         <div
           key={period.id}
-          className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white"
+          className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-card"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             <div>
@@ -99,12 +99,6 @@ export default async function FixSchedulePage() {
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
                 Assign manually
-              </Link>
-              <Link
-                href="/manager/coverage"
-                className="rounded-lg px-2 py-2 text-sm text-slate-500 hover:text-slate-800"
-              >
-                Leave it
               </Link>
             </div>
           </div>

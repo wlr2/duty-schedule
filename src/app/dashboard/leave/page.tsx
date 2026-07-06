@@ -44,7 +44,7 @@ export default async function LeavePage() {
 
         <form
           action={submitLeave}
-          className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5"
+          className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-card p-5"
         >
           <div>
             <label className={labelClass} htmlFor="category">Reason</label>
@@ -82,7 +82,7 @@ export default async function LeavePage() {
             return (
               <div
                 key={r.id}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-card px-4 py-3"
                 style={{ borderLeft: `4px solid ${border}` }}
               >
                 <div>

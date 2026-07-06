@@ -53,6 +53,7 @@ export async function detectGaps(
       .from("schedule_periods")
       .select("start_date, end_date")
       .eq("org_id", orgId)
+      .neq("status", "archived")
       .lte("start_date", toDate)
       .gte("end_date", fromDate),
   ]);

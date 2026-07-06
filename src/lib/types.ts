@@ -89,7 +89,7 @@ export interface SchedulePeriod {
   org_id: string;
   start_date: string;
   end_date: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "archived";
   created_at: string;
 }
 

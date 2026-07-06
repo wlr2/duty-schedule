@@ -82,7 +82,7 @@ export default async function StaffProfilePage({
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <form
           action={updateEmployeeHours}
-          className="rounded-2xl border border-slate-200 bg-white p-5"
+          className="rounded-2xl border border-slate-200 bg-card p-5"
         >
           <h2 className="text-sm font-medium text-slate-500">Required hours / week</h2>
           <input type="hidden" name="employee_id" value={person.id} />
@@ -100,7 +100,7 @@ export default async function StaffProfilePage({
           </div>
         </form>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl border border-slate-200 bg-card p-5">
           <h2 className="text-sm font-medium text-slate-500">Hours scheduled (all time)</h2>
           <p className="mt-2 text-3xl font-bold">{Math.round(hoursWorked)}</p>
           <p className="text-sm text-slate-500">across every roster</p>
@@ -133,7 +133,7 @@ export default async function StaffProfilePage({
         {leaves.map((l) => (
           <div
             key={l.id}
-            className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5"
+            className="flex items-center justify-between rounded-xl border border-slate-200 bg-card px-4 py-2.5"
           >
             <p className="text-sm">
               <span className="font-medium">{leaveLabel(l.category)}</span> ·{" "}
@@ -150,7 +150,7 @@ export default async function StaffProfilePage({
       <h2 className="mt-8 text-lg font-semibold">Compensation</h2>
       <form
         action={setPay}
-        className="mt-2 grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-3"
+        className="mt-2 grid gap-3 rounded-2xl border border-slate-200 bg-card p-5 sm:grid-cols-3"
       >
         <input type="hidden" name="employee_id" value={person.id} />
         <div>

@@ -78,10 +78,10 @@ export function CoverageChart({
             x2={W - 8}
             y1={y(v)}
             y2={y(v)}
-            stroke="#26252c"
+            stroke="var(--t-grid)"
             strokeWidth="1"
           />
-          <text x={PAD_L - 6} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill="#5a5860">
+          <text x={PAD_L - 6} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill="var(--t-axis)">
             {v}
           </text>
         </g>
@@ -98,7 +98,7 @@ export function CoverageChart({
         <path
           d={requiredLine}
           fill="none"
-          stroke="#e9c46a"
+          stroke="var(--t-gold)"
           strokeWidth="2"
           strokeDasharray="6 5"
           strokeLinejoin="round"
@@ -113,7 +113,7 @@ export function CoverageChart({
           y={H - 6}
           textAnchor="middle"
           fontSize="10"
-          fill="#5a5860"
+          fill="var(--t-axis)"
         >
           {`${Math.floor(m / 60) % 24}:00`}
         </text>
@@ -131,7 +131,7 @@ export function CoverageChartLegend() {
       </span>
       <span className="inline-flex items-center gap-1.5">
         <svg width="18" height="6" aria-hidden>
-          <line x1="0" y1="3" x2="18" y2="3" stroke="#e9c46a" strokeWidth="2" strokeDasharray="4 3" />
+          <line x1="0" y1="3" x2="18" y2="3" stroke="var(--t-gold)" strokeWidth="2" strokeDasharray="4 3" />
         </svg>
         Required
       </span>

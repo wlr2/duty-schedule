@@ -54,14 +54,11 @@ export async function loadSolverInput(
       .select("id, full_name, target_hours_per_week, min_rest_hours, max_consecutive_days")
       .eq("org_id", orgId)
       .eq("role", "employee"),
-    supabase
-      .from("employee_preferences")
-      .select("employee_id, day_of_week, preference")
-      .eq("org_id", orgId),
+    supabase.from("employee_preferences").select("*").eq("org_id", orgId),
     supabase.from("position_members").select("position_id, employee_id").eq("org_id", orgId),
     supabase
       .from("availability_exceptions")
-      .select("employee_id, work_date")
+      .select("*")
       .eq("org_id", orgId)
       .gte("work_date", period.start_date)
       .lte("work_date", period.end_date),
@@ -83,18 +80,18 @@ export async function loadSolverInput(
     Profile,
     "id" | "full_name" | "target_hours_per_week" | "min_rest_hours" | "max_consecutive_days"
   >[];
-  const prefs = (prefsRes.data ?? []) as Pick<
+  const prefs = (prefsRes.data ?? []) as (Pick<
     EmployeePreference,
     "employee_id" | "day_of_week" | "preference"
-  >[];
+  > & { status?: string })[];
   const members = (memRes.data ?? []) as Pick<
     PositionMember,
     "position_id" | "employee_id"
   >[];
-  const exceptions = (exRes.data ?? []) as Pick<
+  const exceptions = (exRes.data ?? []) as (Pick<
     AvailabilityException,
     "employee_id" | "work_date"
-  >[];
+  > & { status?: string })[];
   const reqRows = (reqRes.data ?? []) as Pick<
     CoverageRequirement,
     "position_id" | "day_of_week" | "start_time" | "end_time" | "min_headcount"
@@ -130,12 +127,18 @@ export async function loadSolverInput(
     };
   });
 
+  // Only APPROVED unavailability blocks scheduling; pending/declined requests
+  // leave the person schedulable (migration 11; older DBs have no status).
   const availByEmp: Record<string, Record<number, DayPreference>> = {};
   for (const pr of prefs) {
-    (availByEmp[pr.employee_id] ??= {})[pr.day_of_week] = pr.preference;
+    const approved = (pr.status ?? "approved") === "approved";
+    const effective: DayPreference =
+      pr.preference === "unavailable" && !approved ? "available" : pr.preference;
+    (availByEmp[pr.employee_id] ??= {})[pr.day_of_week] = effective;
   }
   const unavailByEmp: Record<string, Set<string>> = {};
   for (const ex of exceptions) {
+    if ((ex.status ?? "approved") !== "approved") continue;
     (unavailByEmp[ex.employee_id] ??= new Set()).add(ex.work_date);
   }
   // Approved leave -> per-employee leave dates clipped to the period.

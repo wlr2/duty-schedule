@@ -135,14 +135,14 @@ export default async function ManagerHome() {
           <p className="mt-0.5 text-sm text-slate-500">Welcome back, {profile.full_name}.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1.5 pl-2 pr-3.5 text-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-card py-1.5 pl-2 pr-3.5 text-sm">
             <AvatarCluster names={dutyNames.length > 0 ? dutyNames : ["–"]} />
             <span className="font-medium">
               {dutyNames.length} of {staffCount ?? 0}
             </span>
             <span className="text-slate-500">on duty</span>
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-card px-3.5 py-1.5 text-sm">
             <span className="font-medium">{onLeave.length}</span>
             <span className="text-slate-500">on leave</span>
           </span>
@@ -152,7 +152,7 @@ export default async function ManagerHome() {
       <div className="mt-6 grid gap-5 lg:grid-cols-3">
         {/* Left column: chart + on duty now */}
         <div className="space-y-5 lg:col-span-2">
-          <section className="rounded-[20px] border border-slate-200 bg-white p-5">
+          <section className="rounded-[20px] border border-slate-200 bg-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">Coverage today</h2>
               <CoverageChartLegend />
@@ -178,7 +178,7 @@ export default async function ManagerHome() {
           <section>
             <h2 className="text-lg font-semibold">On duty now</h2>
             {onDutyNow.length === 0 ? (
-              <p className="mt-2 rounded-[20px] border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+              <p className="mt-2 rounded-[20px] border border-slate-200 bg-card px-4 py-6 text-center text-sm text-slate-500">
                 Nobody is on duty at this hour.
               </p>
             ) : (
@@ -188,7 +188,7 @@ export default async function ManagerHome() {
                   const name = r.profiles?.full_name ?? "?";
                   const personDots = filled.filter((x) => x.profiles?.full_name === name);
                   return (
-                    <div key={i} className="rounded-[20px] border border-slate-200 bg-white p-4">
+                    <div key={i} className="rounded-[20px] border border-slate-200 bg-card p-4">
                       <div className="flex items-center gap-2.5">
                         <Avatar name={name} size={34} />
                         <div className="min-w-0">
@@ -260,7 +260,7 @@ export default async function ManagerHome() {
             </p>
           </section>
 
-          <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+          <section className="rounded-[20px] border border-slate-200 bg-card p-4">
             <h2 className="font-semibold">Starting soon</h2>
             <ul className="mt-2 space-y-2">
               {startingSoon.length === 0 && (
@@ -280,7 +280,7 @@ export default async function ManagerHome() {
             </ul>
           </section>
 
-          <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+          <section className="rounded-[20px] border border-slate-200 bg-card p-4">
             <h2 className="font-semibold">On leave</h2>
             <ul className="mt-2 space-y-2">
               {onLeave.length === 0 && <li className="text-sm text-slate-500">Nobody today.</li>}
@@ -298,7 +298,7 @@ export default async function ManagerHome() {
             </ul>
           </section>
 
-          <section className="rounded-[20px] border border-slate-200 bg-white p-4">
+          <section className="rounded-[20px] border border-slate-200 bg-card p-4">
             <h2 className="text-sm font-medium text-slate-500">Team join code</h2>
             <p className="mt-1.5 font-mono text-2xl font-bold tracking-widest">{org.join_code}</p>
             <p className="mt-1 text-xs text-slate-500">
@@ -329,7 +329,7 @@ function Stat({
   return (
     <Link
       href={href}
-      className={`rounded-[20px] border bg-white p-4 transition ${
+      className={`rounded-[20px] border bg-card p-4 transition ${
         alert ? "border-amber-300" : "border-slate-200 hover:border-violet/60"
       }`}
     >

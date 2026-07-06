@@ -58,14 +58,14 @@ export default async function AssistantMemoryPage() {
       </p>
 
       {files.length === 0 && (
-        <p className="mt-6 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+        <p className="mt-6 rounded-xl border border-slate-200 bg-card px-4 py-8 text-center text-sm text-slate-500">
           Nothing learned yet. Chat with the assistant — it takes notes as you go.
         </p>
       )}
 
       <div className="mt-5 space-y-3">
         {files.map((f) => (
-          <details key={f.path} className="rounded-xl border border-slate-200 bg-white">
+          <details key={f.path} className="rounded-xl border border-slate-200 bg-card">
             <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3">
               <span className="font-medium">{f.path.replace("/memories/", "")}</span>
               <span className="text-xs text-slate-400">updated {timeAgo(f.updated_at)}</span>

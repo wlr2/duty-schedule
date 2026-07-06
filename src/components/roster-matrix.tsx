@@ -12,7 +12,7 @@ export function RosterMatrix({
   const minWidth = 120 + hourLabels.length * 58 + 56;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-300 bg-card">
       <table
         className="border-collapse text-[11px]"
         style={{ minWidth, tableLayout: "fixed", width: "100%" }}
@@ -26,19 +26,21 @@ export function RosterMatrix({
         </colgroup>
 
         <thead>
-          <tr className="bg-surface2 text-white">
-            <th className="sticky left-0 z-20 border border-slate-300 bg-surface2 px-3 py-2 text-left font-medium">
+          <tr className="bg-surface2">
+            <th className="sticky left-0 z-20 border border-slate-300 bg-surface2 px-3 py-2 text-left font-medium text-slate-900">
               Name
             </th>
             {hourLabels.map((l) => (
               <th
                 key={l}
-                className="border border-slate-300 px-1 py-2 font-normal text-slate-200"
+                className="border border-slate-300 px-1 py-2 font-normal text-slate-500"
               >
                 {l.replace(" - ", "–")}
               </th>
             ))}
-            <th className="border border-slate-300 px-1 py-2 font-medium">Total</th>
+            <th className="border border-slate-300 px-1 py-2 font-medium text-slate-900">
+              Total
+            </th>
           </tr>
         </thead>
 
@@ -47,7 +49,7 @@ export function RosterMatrix({
             <tr key={r.id}>
               <td
                 className={`sticky left-0 z-10 border border-slate-300 bg-surface2 px-3 py-1.5 font-medium whitespace-nowrap ${
-                  r.off ? "text-red-300" : "text-white"
+                  r.off ? "text-red-600" : "text-slate-900"
                 }`}
               >
                 {r.name}
@@ -64,10 +66,12 @@ export function RosterMatrix({
                 r.cells.map((c, i) => (
                   <td
                     key={i}
-                    className="overflow-hidden border border-slate-300 px-0.5 py-1.5 text-center font-semibold text-white"
-                    style={{ backgroundColor: c.color ?? "#ffffff" }}
+                    className={`overflow-hidden border border-slate-300 px-0.5 py-1.5 text-center font-semibold ${
+                      c.color ? "text-white" : "text-slate-400"
+                    }`}
+                    style={c.color ? { backgroundColor: c.color } : undefined}
                   >
-                    {c.showLabel ? c.label : " "}
+                    {c.showLabel ? c.label : " "}
                   </td>
                 ))
               )}

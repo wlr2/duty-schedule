@@ -42,7 +42,7 @@ export default async function EmployeeHome() {
           />
         </div>
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-card p-6">
           <h2 className="font-semibold">Required hours</h2>
           <p className="mt-1 text-sm text-slate-600">
             You&apos;re required to work{" "}
@@ -68,7 +68,7 @@ function NavCard({
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-violet/60 hover:shadow-sm"
+      className="rounded-2xl border border-slate-200 bg-card p-5 transition hover:border-violet/60 hover:shadow-sm"
     >
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
         <Icon size={20} aria-hidden />

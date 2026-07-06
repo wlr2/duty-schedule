@@ -18,14 +18,14 @@ export function OnboardingForm({ defaultName }: { defaultName: string }) {
         <button
           type="button"
           onClick={() => setRole("manager")}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "manager" ? "bg-white shadow-sm" : "text-slate-500"}`}
+          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "manager" ? "bg-card shadow-sm" : "text-slate-500"}`}
         >
           Create a team
         </button>
         <button
           type="button"
           onClick={() => setRole("employee")}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "employee" ? "bg-white shadow-sm" : "text-slate-500"}`}
+          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "employee" ? "bg-card shadow-sm" : "text-slate-500"}`}
         >
           Join a team
         </button>

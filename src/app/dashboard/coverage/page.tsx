@@ -54,7 +54,7 @@ export default async function CoveragePage() {
         </h2>
         <div className="mt-2 space-y-2">
           {open.length === 0 && (
-            <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+            <p className="rounded-xl border border-slate-200 bg-card px-4 py-6 text-sm text-slate-500">
               Nothing needs cover right now.
             </p>
           )}
@@ -63,7 +63,7 @@ export default async function CoveragePage() {
             return (
               <div
                 key={c.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-card px-4 py-3"
               >
                 <div>
                   <p className="font-medium">{slotLabel(c)}</p>
@@ -98,7 +98,7 @@ export default async function CoveragePage() {
               {resolved.map((c) => (
                 <div
                   key={c.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-card px-4 py-3"
                 >
                   <p className="font-medium">{slotLabel(c)}</p>
                   <span className="text-sm text-green-700">

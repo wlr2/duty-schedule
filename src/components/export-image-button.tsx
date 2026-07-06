@@ -27,8 +27,11 @@ export function ExportImageButton({
       });
       width += 32; // padding breathing room
 
+      // Match the app's current theme so text keeps its contrast in the PNG.
+      const themeBg =
+        getComputedStyle(document.body).backgroundColor || "#0a0a0c";
       const dataUrl = await toPng(node, {
-        backgroundColor: "#ffffff",
+        backgroundColor: themeBg,
         pixelRatio: 2,
         cacheBust: true,
         width,
@@ -51,7 +54,7 @@ export function ExportImageButton({
     <button
       onClick={handleExport}
       disabled={busy}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100 disabled:opacity-60"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-card px-3 py-2 text-sm font-medium hover:bg-slate-100 disabled:opacity-60"
     >
       <Download size={16} aria-hidden />
       {busy ? "Exporting…" : "Download image"}

@@ -15,7 +15,7 @@ function colorFor(name: string): string {
 export function Avatar({ name, size = 30 }: { name: string; size?: number }) {
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-full font-semibold text-[#0a0a0c] ring-2 ring-[#151419]"
+      className="grid shrink-0 place-items-center rounded-full font-semibold text-[#101014] ring-2 ring-card"
       style={{
         width: size,
         height: size,
@@ -38,7 +38,7 @@ export function AvatarCluster({ names, max = 4 }: { names: string[]; max?: numbe
         <Avatar key={n} name={n} size={26} />
       ))}
       {extra > 0 && (
-        <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-600 ring-2 ring-[#151419]">
+        <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-600 ring-2 ring-card">
           +{extra}
         </span>
       )}

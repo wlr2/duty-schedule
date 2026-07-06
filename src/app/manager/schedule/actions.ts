@@ -62,6 +62,55 @@ export async function publishPeriod(formData: FormData) {
   revalidatePath("/manager/schedule");
 }
 
+/** Archive a published schedule: hides it from the main list (and from the
+ *  gap detector's "scheduled dates"). Requires migration 11. */
+export async function archivePeriod(formData: FormData) {
+  const session = await requireManager();
+  const orgId = session.profile!.org_id;
+  const periodId = String(formData.get("period_id") ?? "");
+  if (!periodId) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("schedule_periods")
+    .update({ status: "archived" })
+    .eq("id", periodId)
+    .eq("org_id", orgId)
+    .eq("status", "published");
+
+  revalidatePath("/manager/schedule");
+}
+
+export async function unarchivePeriod(formData: FormData) {
+  const session = await requireManager();
+  const orgId = session.profile!.org_id;
+  const periodId = String(formData.get("period_id") ?? "");
+  if (!periodId) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("schedule_periods")
+    .update({ status: "published" })
+    .eq("id", periodId)
+    .eq("org_id", orgId)
+    .eq("status", "archived");
+
+  revalidatePath("/manager/schedule");
+}
+
+/** Delete straight from the list page (no redirect needed). */
+export async function deletePeriodFromList(formData: FormData) {
+  const session = await requireManager();
+  const orgId = session.profile!.org_id;
+  const periodId = String(formData.get("period_id") ?? "");
+  if (!periodId) return;
+
+  const supabase = await createClient();
+  await supabase.from("schedule_periods").delete().eq("id", periodId).eq("org_id", orgId);
+
+  revalidatePath("/manager/schedule");
+}
+
 // Works for both draft and published schedules.
 export async function deletePeriod(formData: FormData) {
   const session = await requireManager();

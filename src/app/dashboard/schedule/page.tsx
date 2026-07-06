@@ -50,7 +50,7 @@ export default async function MySchedulePage() {
 
         <div className="mt-6 space-y-2">
           {shifts.length === 0 && (
-            <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+            <p className="rounded-xl border border-slate-200 bg-card px-4 py-6 text-sm text-slate-500">
               No upcoming shifts yet. When your manager publishes a schedule,
               your shifts will appear here.
             </p>
@@ -58,7 +58,7 @@ export default async function MySchedulePage() {
           {shifts.map((s) => (
             <div
               key={s.id}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
+              className="flex items-center justify-between rounded-xl border border-slate-200 bg-card px-4 py-3"
               style={{ borderLeft: `4px solid ${s.shift_types?.color ?? "#2563eb"}` }}
             >
               <div>
@@ -71,7 +71,7 @@ export default async function MySchedulePage() {
               </div>
               <form action={requestCoverage}>
                 <input type="hidden" name="assignment_id" value={s.id} />
-                <button className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
+                <button className="rounded-lg border border-slate-300 bg-card px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
                   Request cover
                 </button>
               </form>
