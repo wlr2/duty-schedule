@@ -242,28 +242,24 @@ async function executeTool(
     if (error || !period) return { result: `Error: ${error?.message}` };
     const res = await generateForPeriod(supabase, orgId, period);
 
-    // Give the model concrete unfilled slots so it can explain WHY (Phase 3
-    // adds structured infeasibility diagnostics on top of this).
+    // Structured solver diagnostics: which slots failed, and why each person
+    // was blocked — the model turns this into a plain-English explanation.
     let gapDetail = "";
-    if (res.gaps > 0) {
-      const { data: posNames } = await supabase
-        .from("shift_types")
-        .select("id, name")
-        .eq("org_id", orgId);
-      const nameOf = new Map((posNames ?? []).map((p) => [p.id, p.name]));
-      const open = res.assignments
-        .filter((a) => !a.employeeId)
-        .slice(0, 20)
-        .map(
-          (a) =>
-            `${a.date} ${minToTimeStr(a.startMin)}-${minToTimeStr(a.endMin)} ${
-              nameOf.get(a.positionId) ?? "?"
-            }`,
-        );
-      gapDetail = ` UNFILLED SLOTS:\n${open.join("\n")}`;
+    if (res.gapDetails.length > 0) {
+      const lines = res.gapDetails.slice(0, 12).map((g) => {
+        const why = g.reasons.length > 0 ? ` — ${g.reasons.slice(0, 4).join("; ")}` : "";
+        return `${g.date} ${minToTimeStr(g.startMin)}-${minToTimeStr(g.endMin)} ${g.positionName}: ${g.missing} short${why}`;
+      });
+      gapDetail = ` UNFILLED (with per-person blockers):\n${lines.join("\n")}`;
+    }
+    let relaxNote = "";
+    if (res.relaxations.length > 0) {
+      const byRule: Record<string, number> = {};
+      for (const r of res.relaxations) byRule[r.rule] = (byRule[r.rule] ?? 0) + 1;
+      relaxNote = ` NOTE: coverage required bending soft rules ${JSON.stringify(byRule)} (rest/hour/consecutive-day exceptions — tell the manager honestly).`;
     }
     return {
-      result: `Draft schedule created for ${start} to ${end}. ${res.gaps} unfilled slot(s). The manager can review and publish it under "Schedule".${gapDetail}`,
+      result: `Draft schedule created for ${start} to ${end}. ${res.gaps} unfilled slot(s). The manager can review and publish it under "Schedule".${gapDetail}${relaxNote}`,
       action: `Generated draft schedule (${res.gaps} gaps)`,
     };
   }
