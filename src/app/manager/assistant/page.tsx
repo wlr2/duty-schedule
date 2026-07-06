@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Send, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { BookOpenText, Send, Sparkles } from "lucide-react";
 
 type ApiMessage = { role: string; content: unknown };
 type Bubble = {
@@ -20,6 +21,7 @@ const EXAMPLES = [
 export default function AssistantPage() {
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [apiMessages, setApiMessages] = useState<ApiMessage[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export default function AssistantPage() {
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextApi, confirmed }),
+        body: JSON.stringify({ messages: nextApi, confirmed, conversationId }),
       });
       const data = await res.json();
       if (data.error) {
@@ -45,6 +47,7 @@ export default function AssistantPage() {
         if (Array.isArray(data.messages) && data.messages.length > 0) {
           setApiMessages(data.messages);
         }
+        if (typeof data.conversationId === "string") setConversationId(data.conversationId);
         setBubbles((b) => [
           ...b,
           {
@@ -70,16 +73,24 @@ export default function AssistantPage() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-9rem)] w-full max-w-2xl flex-col">
-      <div className="flex items-center gap-2">
-        <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white">
-          <Sparkles size={18} aria-hidden />
-        </span>
-        <div>
-          <h1 className="text-xl font-bold leading-tight">Scheduling assistant</h1>
-          <p className="text-sm text-slate-500">
-            Describe your duties or shifts in plain words — I&apos;ll set them up.
-          </p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white">
+            <Sparkles size={18} aria-hidden />
+          </span>
+          <div>
+            <h1 className="text-xl font-bold leading-tight">Scheduling assistant</h1>
+            <p className="text-sm text-slate-500">
+              Describe your duties or shifts in plain words — I&apos;ll set them up.
+            </p>
+          </div>
         </div>
+        <Link
+          href="/manager/assistant/memory"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+        >
+          <BookOpenText size={14} aria-hidden /> What it knows
+        </Link>
       </div>
 
       <div

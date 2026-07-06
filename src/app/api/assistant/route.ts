@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { generateForPeriod } from "@/lib/schedule-runner";
+import { executeMemoryCommand } from "@/lib/assistant-memory";
 import { minToTimeStr, todayISO } from "@/lib/scheduler";
 
 // Use the latest capable model. Switch to "claude-haiku-4-5" here for lower cost.
@@ -45,6 +46,13 @@ YOUR JOB:
 2. Use list_staff before proposing eligibility — only use names that exist, and tell the manager if some are missing.
 3. Summarize schedules in plain English when asked (use get_schedule): who works when, total coverage, anything unusual.
 4. If a generated schedule has unfilled slots, explain the likely cause in plain words (too few eligible people, rest rules, availability) and suggest the smallest fix — e.g. "add one more person eligible for PAC, or shorten the overnight window".
+
+MEMORY — you have a private org notebook at /memories (the memory tool):
+- At the START of a conversation, view /memories and read whichever files are relevant before acting. Apply what you learned there without being re-told.
+- Save durable SOFT knowledge the database does not hold: scheduling conventions (e.g. "overnight is always 1 person"), manager preferences and tone, soft people notes ("X prefers no back-to-back nights"), and every correction the manager gives you (corrections.md).
+- Do NOT copy facts the database owns (staff, positions, requirements) into memory — read those with the other tools.
+- Keep files short and current: edit or replace outdated lines instead of appending forever. Suggested files: company_profile.md, scheduling_conventions.md, manager_preferences.md, people_notes.md, corrections.md.
+- The manager can see and edit everything you store, so write plainly.
 
 RULES:
 - Times are 24-hour "HH:MM". Be concise and friendly. Don't invent staff. Don't ask more than 1–2 questions at a time. If the manager gives enough detail, propose the plan right away.`;
@@ -267,6 +275,10 @@ async function executeTool(
   return { result: `Unknown tool: ${name}` };
 }
 
+// The Anthropic-hosted Memory Tool (GA): the model issues file commands that
+// we execute against the org-scoped store in assistant-memory.ts.
+const MEMORY_TOOL = { type: "memory_20250818", name: "memory" } as const;
+
 const TOOLS: Anthropic.Tool[] = [
   {
     name: "list_positions",
@@ -383,7 +395,11 @@ export async function POST(request: Request) {
     });
   }
 
-  let body: { messages?: Anthropic.MessageParam[]; confirmed?: boolean };
+  let body: {
+    messages?: Anthropic.MessageParam[];
+    confirmed?: boolean;
+    conversationId?: string | null;
+  };
   try {
     body = await request.json();
   } catch {
@@ -393,6 +409,32 @@ export async function POST(request: Request) {
     ? body.messages.slice(-50)
     : [];
   const confirmed = body.confirmed === true;
+  let conversationId: string | null =
+    typeof body.conversationId === "string" ? body.conversationId : null;
+
+  // Persist the raw conversation per org (Addendum B layer 3).
+  async function persistConversation(msgs: Anthropic.MessageParam[]): Promise<string | null> {
+    try {
+      if (conversationId) {
+        await supabase
+          .from("assistant_conversations")
+          .update({ messages: msgs, updated_at: new Date().toISOString() })
+          .eq("id", conversationId)
+          .eq("org_id", orgId);
+        return conversationId;
+      }
+      const first = msgs.find((m) => m.role === "user" && typeof m.content === "string");
+      const title = first ? String(first.content).slice(0, 80) : "Conversation";
+      const { data } = await supabase
+        .from("assistant_conversations")
+        .insert({ org_id: orgId, user_id: user!.id, title, messages: msgs })
+        .select("id")
+        .single();
+      return (data?.id as string) ?? null;
+    } catch {
+      return conversationId;
+    }
+  }
 
   const anthropic = new Anthropic({ apiKey });
   const today = todayISO();
@@ -400,12 +442,13 @@ export async function POST(request: Request) {
   let blockedWrite = false;
 
   try {
-    for (let i = 0; i < 6; i++) {
+    // Memory reads add a turn or two, so allow a slightly longer loop.
+    for (let i = 0; i < 8; i++) {
       const resp = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 2000,
         system: systemPrompt(today),
-        tools: TOOLS,
+        tools: [...TOOLS, MEMORY_TOOL as unknown as Anthropic.Tool],
         messages,
       });
       messages.push({ role: "assistant", content: resp.content });
@@ -418,14 +461,25 @@ export async function POST(request: Request) {
           .trim();
         const needsConfirm = blockedWrite || reply.includes(CONFIRM_MARKER);
         reply = reply.split(CONFIRM_MARKER).join("").trim();
-        return Response.json({ reply, actions, messages, needsConfirm });
+        conversationId = await persistConversation(messages);
+        return Response.json({ reply, actions, messages, needsConfirm, conversationId });
       }
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const block of resp.content) {
         if (block.type === "tool_use") {
           let outcome: ToolOutcome;
-          if (WRITE_TOOLS.has(block.name) && !confirmed) {
+          if (block.name === "memory") {
+            // The assistant's own notebook — org-scoped, path-validated, and
+            // manager-auditable, so it is exempt from the confirm gate.
+            outcome = {
+              result: await executeMemoryCommand(
+                supabase,
+                orgId,
+                (block.input ?? {}) as Record<string, unknown>,
+              ),
+            };
+          } else if (WRITE_TOOLS.has(block.name) && !confirmed) {
             blockedWrite = true;
             outcome = {
               result:
@@ -450,11 +504,13 @@ export async function POST(request: Request) {
       }
       messages.push({ role: "user", content: toolResults });
     }
+    conversationId = await persistConversation(messages);
     return Response.json({
       reply: "That took a few steps — could you confirm what you'd like me to do next?",
       actions,
       messages,
       needsConfirm: blockedWrite,
+      conversationId,
     });
   } catch (err) {
     console.error("Assistant error:", err);
