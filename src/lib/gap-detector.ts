@@ -190,9 +190,9 @@ export async function detectGaps(
       const posNames = [...new Set(gapsOfDay.map((g) => g.positionName))].join(", ");
       await notifyUsers(supabase, managerIds, {
         title: `Coverage gap on ${date}`,
-        body: `${gapsOfDay.length} unfilled slot(s): ${posNames}. Tap to review.`,
-        link: "/manager/coverage",
-        type: "coverage_gap",
+        body: `${gapsOfDay.length} unfilled slot(s): ${posNames}. Tap to auto-fill or assign someone.`,
+        link: "/manager/coverage/fix",
+        type: "coverage_gap_actionable",
         dedupeKey: `gaps:${orgId}:${date}:${gapsOfDay.length}:${posNames}`,
       });
     }

@@ -108,6 +108,23 @@ export interface Assignment {
   source: "pattern" | "manual" | "solver";
   /** Locked rows survive regeneration untouched. */
   locked: boolean;
+  schedule_version_id: string | null;
+  created_at: string;
+}
+
+/** Addendum A: numbered schedule change. Drafts hold a repair proposal in
+ *  `proposal`; publishing applies it, stamps the publisher and supersedes
+ *  the previous published version. */
+export interface ScheduleVersion {
+  id: string;
+  org_id: string;
+  period_id: string | null;
+  version: number;
+  status: "draft" | "published" | "superseded";
+  note: string | null;
+  proposal: unknown | null;
+  published_at: string | null;
+  published_by: string | null;
   created_at: string;
 }
 

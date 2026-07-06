@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { notifyUsers } from "@/lib/notify";
+import { detectGaps } from "@/lib/gap-detector";
 import { formatDate } from "@/lib/format";
 import { leaveLabel } from "@/lib/leave";
 
@@ -165,6 +166,14 @@ export async function reviewLeave(formData: FormData) {
           type: "coverage_gap",
         },
       );
+    }
+
+    // Addendum A trigger: sweep the affected window only. Detects the new
+    // gaps and sends the manager ONE actionable "fix schedule" notification.
+    try {
+      await detectGaps(supabase, orgId, leave.start_date, leave.end_date);
+    } catch {
+      /* non-fatal */
     }
   } else {
     await supabase
