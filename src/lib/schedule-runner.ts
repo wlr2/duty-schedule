@@ -14,6 +14,7 @@ import {
   type RequirementBand,
 } from "@/lib/scheduler";
 import { defaultSolver } from "@/lib/solver";
+import { detectGaps } from "@/lib/gap-detector";
 import type {
   AvailabilityException,
   CoverageRequirement,
@@ -201,6 +202,13 @@ export async function generateForPeriod(
     source: "solver",
   }));
   if (rows.length > 0) await supabase.from("assignments").insert(rows);
+
+  // Post-solve gap sweep: log coverage_gaps + alert managers (deduped).
+  try {
+    await detectGaps(supabase, orgId, period.start_date, period.end_date);
+  } catch (err) {
+    console.error("Gap detection failed (non-fatal):", err);
+  }
 
   return result;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { PushToggle } from "@/components/push-toggle";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { AppNotification } from "@/lib/types";
@@ -46,7 +47,11 @@ export default async function NotificationsPage() {
           )}
         </div>
 
-        <div className="mt-5 space-y-2">
+        <div className="mt-5">
+          <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
+        </div>
+
+        <div className="space-y-2">
           {notifications.length === 0 && (
             <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
               No notifications yet.

@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/app-header";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatTime } from "@/lib/format";
+import { todayISO } from "@/lib/scheduler";
 import { requestCoverage } from "../actions";
 
 interface MyShift {
@@ -22,7 +23,7 @@ export default async function MySchedulePage() {
   const session = await requireProfile();
   const profile = session.profile!;
   const org = profile.organizations!;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
 
   const supabase = await createClient();
   const { data } = await supabase

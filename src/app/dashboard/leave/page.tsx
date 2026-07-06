@@ -6,14 +6,13 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { LEAVE_REASONS, leaveLabel, leaveStatus } from "@/lib/leave";
+import { addDaysISO, todayISO } from "@/lib/scheduler";
 import { inputClass, labelClass } from "@/lib/ui";
 import type { LeaveRequest } from "@/lib/types";
 import { submitLeave } from "../actions";
 
 function isoDate(offset = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(todayISO(), offset);
 }
 
 export default async function LeavePage() {

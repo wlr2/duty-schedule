@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { generateForPeriod } from "@/lib/schedule-runner";
-import { minToTimeStr } from "@/lib/scheduler";
+import { minToTimeStr, todayISO } from "@/lib/scheduler";
 
 // Use the latest capable model. Switch to "claude-haiku-4-5" here for lower cost.
 const MODEL = "claude-opus-4-8";
@@ -395,7 +395,7 @@ export async function POST(request: Request) {
   const confirmed = body.confirmed === true;
 
   const anthropic = new Anthropic({ apiKey });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const actions: string[] = [];
   let blockedWrite = false;
 

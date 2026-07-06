@@ -3,14 +3,13 @@ import { SubmitButton } from "@/components/submit-button";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { addDaysISO, todayISO } from "@/lib/scheduler";
 import { inputClass, labelClass } from "@/lib/ui";
 import type { SchedulePeriod } from "@/lib/types";
 import { createPeriodAndGenerate } from "./actions";
 
 function isoDate(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(todayISO(), offsetDays);
 }
 
 export default async function ScheduleListPage() {

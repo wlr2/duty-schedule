@@ -130,15 +130,29 @@ interface Slot {
   difficulty: number; // lower pool / higher headcount = harder, fill first
 }
 
+// TZ-safe calendar-date helpers. NEVER mix local-midnight Date objects with
+// toISOString() — east of UTC that shifts every date one day back.
+/** dateISO + n days, in pure calendar terms. */
+export function addDaysISO(dateISO: string, n: number): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/** Weekday (0 = Sunday) of a calendar date, TZ-independent. */
+export function dayOfWeekISO(dateISO: string): number {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** Today's date on the USER'S calendar (local timezone). */
+export function todayISO(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+
 /** Inclusive list of ISO dates between start and end. */
 export function datesInRange(startISO: string, endISO: string): string[] {
   const out: string[] = [];
-  const d = new Date(startISO + "T00:00:00");
-  const end = new Date(endISO + "T00:00:00");
-  while (d <= end) {
-    out.push(d.toISOString().slice(0, 10));
-    d.setDate(d.getDate() + 1);
-  }
+  for (let d = startISO; d <= endISO; d = addDaysISO(d, 1)) out.push(d);
   return out;
 }
 
@@ -147,9 +161,7 @@ const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 
 /** Monday-based week key, so weekly-hour targets track calendar weeks. */
 function weekKey(dateISO: string): string {
-  const d = new Date(dateISO + "T00:00:00");
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(dateISO, -((dayOfWeekISO(dateISO) + 6) % 7));
 }
 
 /** Night = any overlap with 22:00–06:00 (day-relative minutes). */
@@ -214,7 +226,7 @@ export function generateCoverageSchedule(input: {
     state.dayMin.set(date, (state.dayMin.get(date) ?? 0) + len);
     state.weekMin.set(w, (state.weekMin.get(w) ?? 0) + len);
     if (isNightSlot(startMin, endMin)) state.nightCount++;
-    const dow = new Date(date + "T00:00:00").getDay();
+    const dow = dayOfWeekISO(date);
     if (dow === 0 || dow === 6) state.weekendCount++;
     state.workedDates.add(date);
     minutesByEmployee[empId] = state.total;
@@ -234,10 +246,10 @@ export function generateCoverageSchedule(input: {
   /** Consecutive worked days ending YESTERDAY relative to `date`. */
   function streakBefore(empId: string, date: string, cap: number): number {
     let streak = 0;
-    const d = new Date(date + "T00:00:00");
+    let d = date;
     while (streak < cap + 1) {
-      d.setDate(d.getDate() - 1);
-      if (st[empId].workedDates.has(d.toISOString().slice(0, 10))) streak++;
+      d = addDaysISO(d, -1);
+      if (st[empId].workedDates.has(d)) streak++;
       else break;
     }
     return streak;
@@ -246,7 +258,7 @@ export function generateCoverageSchedule(input: {
   // ---- Main loop ------------------------------------------------------------
   for (const date of dates) {
     const idx = dateIdx.get(date)!;
-    const dow = new Date(date + "T00:00:00").getDay();
+    const dow = dayOfWeekISO(date);
     const isWeekend = dow === 0 || dow === 6;
 
     // Build today's slots from requirement bands (fallback: position window).

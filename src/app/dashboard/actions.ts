@@ -60,6 +60,7 @@ export async function submitLeave(formData: FormData) {
       title: "New leave request",
       body: `${name} — ${leaveLabel(category)}: ${formatDate(start)} – ${formatDate(end)}`,
       link: "/manager/leave",
+      type: "leave_request",
     },
   );
 
@@ -109,6 +110,7 @@ export async function requestCoverage(formData: FormData) {
       title: "Shift cover needed",
       body: `${name} needs cover${note ? `: ${note}` : ""}`,
       link: "/dashboard/coverage",
+      type: "coverage_gap",
     },
   );
 
@@ -133,6 +135,7 @@ export async function claimCoverage(formData: FormData) {
       title: "Your shift will be covered",
       body: `${name} is covering your shift.`,
       link: "/dashboard/coverage",
+      type: "coverage_claimed",
     });
   }
 

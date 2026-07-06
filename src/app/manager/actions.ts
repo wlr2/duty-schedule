@@ -141,6 +141,7 @@ export async function reviewLeave(formData: FormData) {
       title: "Leave approved",
       body: `${leaveLabel(leave.category)}: ${dateRange}`,
       link: "/dashboard/leave",
+      type: "leave_decision",
     });
 
     if ((opened ?? 0) > 0) {
@@ -161,6 +162,7 @@ export async function reviewLeave(formData: FormData) {
           title: "Cover needed",
           body: `${emp?.full_name ?? "A teammate"} is on leave (${dateRange}) — ${opened} shift(s) need cover.`,
           link: "/dashboard/coverage",
+          type: "coverage_gap",
         },
       );
     }
@@ -178,6 +180,7 @@ export async function reviewLeave(formData: FormData) {
       title: "Leave not approved",
       body: dateRange,
       link: "/dashboard/leave",
+      type: "leave_decision",
     });
   }
 
