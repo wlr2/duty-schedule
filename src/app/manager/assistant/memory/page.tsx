@@ -77,10 +77,10 @@ export default async function AssistantMemoryPage() {
                   name="content"
                   defaultValue={f.content}
                   rows={Math.min(14, Math.max(4, f.content.split("\n").length + 1))}
-                  className="w-full rounded-lg border border-slate-300 p-3 font-mono text-sm outline-none focus:border-slate-900"
+                  className="w-full rounded-lg border border-slate-300 p-3 font-mono text-sm outline-none focus:border-violet"
                 />
                 <div className="flex items-center gap-2">
-                  <SubmitButton className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">
+                  <SubmitButton className="rounded-lg bg-violet px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-violet-soft">
                     Save changes
                   </SubmitButton>
                 </div>

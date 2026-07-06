@@ -1,39 +1,162 @@
 @import "tailwindcss";
 
-/* DutyRoster uses a single, clean light theme so text is always dark on light
-   backgrounds — regardless of the operating system's dark-mode setting. */
+/* ============================================================================
+   DutyRoster design tokens — dark violet system (single source of truth).
+   Near-black canvas, one violet accent, hairline borders, soft glow depth.
+   The Tailwind palette below is REMAPPED to these tokens, so every existing
+   utility class in the app renders the dark theme without per-screen edits.
+   ========================================================================== */
 
-:root {
-  color-scheme: light; /* keep native inputs/dropdowns light, not OS-dark */
-  --background: #f8fafc; /* slate-50  */
-  --foreground: #0f172a; /* slate-900 */
+/* Display face: Clash Display (Fontshare Free Font License, bundled). */
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0c;            /* app canvas */
+  --surface: #151419;       /* cards */
+  --surface-2: #1c1b21;     /* rail, pills, inputs */
+  --hairline: #26252c;      /* 1px borders */
+  --text: #f5f4f7;
+  --text-muted: #9896a1;
+  --text-faint: #5a5860;
+  --violet: #7c5cff;
+  --violet-soft: #6a4deb;   /* pressed / hover */
+  --gold: #e9c46a;          /* dashed "required" line */
+  --grad-hero: linear-gradient(135deg, #8257fe 0%, #b15ce0 45%, #f0996a 100%);
+}
+
+@theme {
+  /* Canvas + text */
+  --color-background: #0a0a0c;
+  --color-foreground: #f5f4f7;
+
+  /* Remap the light palette the app was built with onto dark tokens. */
+  --color-white: #151419;      /* cards */
+  --color-slate-50: #1c1b21;   /* table heads, subtle fills */
+  --color-slate-100: #232129;  /* hover fills, row dividers */
+  --color-slate-200: #26252c;  /* card borders */
+  --color-slate-300: #34323c;  /* input borders */
+  --color-slate-400: #6e6c78;  /* placeholders, faint */
+  --color-slate-500: #8b8992;  /* meta text */
+  --color-slate-600: #a5a3ae;  /* muted text */
+  --color-slate-700: #cbc9d4;  /* labels, ghost-button text */
+  --color-slate-800: #e2e0ea;
+  --color-slate-900: #f5f4f7;  /* headings */
+
+  /* Accents */
+  --color-violet: #7c5cff;
+  --color-violet-soft: #6a4deb;
+  --color-gold: #e9c46a;
+  --color-surface2: #1c1b21;
+
+  --color-blue-50: #201a38;
+  --color-blue-200: #4a3e85;
+  --color-blue-600: #a98bff;
+  --color-blue-700: #b9a3ff;
+
+  --color-green-100: #123528;
+  --color-green-600: #18a566;
+  --color-green-700: #4ade9c;
+  --color-green-800: #7ce7b8;
+
+  --color-red-50: #2b121b;
+  --color-red-100: #3a1523;
+  --color-red-200: #5a2136;
+  --color-red-300: #6e2b44;
+  --color-red-600: #ff4d6d;
+  --color-red-700: #ff7d96;
+  --color-red-900: #ffb3c4;
+
+  --color-amber-50: #2a2414;
+  --color-amber-200: #57491f;
+  --color-amber-300: #6e5c26;
+  --color-amber-700: #e9c46a;
+  --color-amber-800: #eed288;
+  --color-amber-900: #efd79a;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
 html {
-  background: var(--background);
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", Arial,
-    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-variant-numeric: tabular-nums; /* times & counts align everywhere */
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ensure form controls always read as dark text on white. */
+/* Display face on titles and hero numbers. */
+h1,
+h2,
+.font-display {
+  font-family: "Clash Display", var(--font-inter), system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* Form controls read light-on-dark. */
 input,
 select,
 textarea {
-  color: var(--foreground);
+  color: var(--text);
+  background-color: var(--surface-2);
 }
 input::placeholder,
 textarea::placeholder {
-  color: #94a3b8; /* slate-400 */
+  color: var(--text-faint);
+}
+
+/* Visible keyboard focus, violet. */
+:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+/* Depth on dark = glow, not shadow. */
+.glow-violet {
+  box-shadow: 0 0 24px rgba(124, 92, 255, 0.35);
+}
+.bg-grad-hero {
+  background: var(--grad-hero);
+}
+
+/* Restrained entrance for page sections. */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-in {
+  animation: fadeUp 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -140,7 +140,7 @@ export default async function ScheduleReviewPage({
             {p.status === "draft" && (
               <form action={publishPeriod}>
                 <input type="hidden" name="period_id" value={p.id} />
-                <button className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
+                <button className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90">
                   <Check size={15} aria-hidden /> Publish
                 </button>
               </form>

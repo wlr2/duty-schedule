@@ -75,7 +75,7 @@ export default function AssistantPage() {
     <div className="mx-auto flex h-[calc(100vh-9rem)] w-full max-w-2xl flex-col">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-violet text-white">
             <Sparkles size={18} aria-hidden />
           </span>
           <div>
@@ -105,7 +105,7 @@ export default function AssistantPage() {
                 <button
                   key={ex}
                   onClick={() => send(ex)}
-                  className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-sm hover:border-slate-400"
+                  className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-sm hover:border-violet/60"
                 >
                   {ex}
                 </button>
@@ -119,7 +119,7 @@ export default function AssistantPage() {
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
                 b.role === "user"
-                  ? "bg-slate-900 text-white"
+                  ? "bg-violet text-white"
                   : "border border-slate-200 bg-slate-50 text-slate-800"
               }`}
             >
@@ -140,7 +140,7 @@ export default function AssistantPage() {
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={() => send("Confirmed — apply the changes.", true)}
-                    className="rounded-lg bg-green-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                    className="rounded-lg bg-green-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                   >
                     ✓ Yes, apply it
                   </button>
@@ -176,12 +176,12 @@ export default function AssistantPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Describe your schedule, or ask a question…"
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet"
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-violet px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-soft disabled:opacity-50"
         >
           <Send size={16} aria-hidden /> Send
         </button>

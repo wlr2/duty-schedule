@@ -55,7 +55,7 @@ export default async function ManagerLeavePage() {
                   <form action={reviewLeave}>
                     <input type="hidden" name="id" value={r.id} />
                     <input type="hidden" name="decision" value="approved" />
-                    <button className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
+                    <button className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90">
                       Approve
                     </button>
                   </form>

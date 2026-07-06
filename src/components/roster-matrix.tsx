@@ -26,19 +26,19 @@ export function RosterMatrix({
         </colgroup>
 
         <thead>
-          <tr className="bg-slate-800 text-white">
-            <th className="sticky left-0 z-20 border border-slate-600 bg-slate-800 px-3 py-2 text-left font-medium">
+          <tr className="bg-surface2 text-white">
+            <th className="sticky left-0 z-20 border border-slate-300 bg-surface2 px-3 py-2 text-left font-medium">
               Name
             </th>
             {hourLabels.map((l) => (
               <th
                 key={l}
-                className="border border-slate-600 px-1 py-2 font-normal text-slate-200"
+                className="border border-slate-300 px-1 py-2 font-normal text-slate-200"
               >
                 {l.replace(" - ", "–")}
               </th>
             ))}
-            <th className="border border-slate-600 px-1 py-2 font-medium">Total</th>
+            <th className="border border-slate-300 px-1 py-2 font-medium">Total</th>
           </tr>
         </thead>
 
@@ -46,7 +46,7 @@ export function RosterMatrix({
           {rows.map((r) => (
             <tr key={r.id}>
               <td
-                className={`sticky left-0 z-10 border border-slate-600 bg-slate-800 px-3 py-1.5 font-medium whitespace-nowrap ${
+                className={`sticky left-0 z-10 border border-slate-300 bg-surface2 px-3 py-1.5 font-medium whitespace-nowrap ${
                   r.off ? "text-red-300" : "text-white"
                 }`}
               >

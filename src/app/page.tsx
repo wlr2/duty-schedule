@@ -28,7 +28,7 @@ export default async function Home() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700"
+              className="rounded-lg bg-violet px-4 py-2 font-medium text-white hover:bg-violet-soft"
             >
               Get started
             </Link>
@@ -50,7 +50,7 @@ export default async function Home() {
           <div className="mt-8 flex justify-center gap-3">
             <Link
               href="/signup"
-              className="rounded-lg bg-slate-900 px-6 py-3 font-medium text-white hover:bg-slate-700"
+              className="rounded-lg bg-violet px-6 py-3 font-medium text-white hover:bg-violet-soft"
             >
               Create your team
             </Link>

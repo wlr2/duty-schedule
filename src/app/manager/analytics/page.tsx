@@ -2,6 +2,9 @@ import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { timeToHours } from "@/lib/format";
 import { LEAVE_REASONS } from "@/lib/leave";
+import { timeStrToMin, todayISO } from "@/lib/scheduler";
+import { buildCoverageSeries, type RequirementBandLite } from "@/lib/coverage-series";
+import { CoverageChart, CoverageChartLegend } from "@/components/coverage-chart";
 import type { LeaveRequest, Profile } from "@/lib/types";
 
 interface RawA {
@@ -16,16 +19,46 @@ export default async function AnalyticsPage() {
   const orgId = session.profile!.org_id;
 
   const supabase = await createClient();
-  const [{ data: staffData }, { data: assignData }, { data: leaveData }, { data: covData }] =
-    await Promise.all([
-      supabase.from("profiles").select("id, full_name").eq("org_id", orgId).eq("role", "employee"),
-      supabase
-        .from("assignments")
-        .select("employee_id, start_time, end_time, shift_types(start_time, end_time)")
-        .eq("org_id", orgId),
-      supabase.from("leave_requests").select("employee_id, category, status").eq("org_id", orgId),
-      supabase.from("coverage_requests").select("status").eq("org_id", orgId),
-    ]);
+  const today = todayISO();
+  const [
+    { data: staffData },
+    { data: assignData },
+    { data: leaveData },
+    { data: covData },
+    { data: todayAssign },
+    { data: bandData },
+  ] = await Promise.all([
+    supabase.from("profiles").select("id, full_name").eq("org_id", orgId).eq("role", "employee"),
+    supabase
+      .from("assignments")
+      .select("employee_id, start_time, end_time, shift_types(start_time, end_time)")
+      .eq("org_id", orgId),
+    supabase.from("leave_requests").select("employee_id, category, status").eq("org_id", orgId),
+    supabase.from("coverage_requests").select("status").eq("org_id", orgId),
+    supabase
+      .from("assignments")
+      .select("start_time, end_time, status, employee_id, shift_types(start_time, end_time)")
+      .eq("org_id", orgId)
+      .eq("work_date", today),
+    supabase
+      .from("coverage_requirements")
+      .select("day_of_week, start_time, end_time, min_headcount")
+      .eq("org_id", orgId),
+  ]);
+
+  // Signature staffed-vs-required chart for today (same component as Overview).
+  const todaySeries = buildCoverageSeries(
+    today,
+    ((todayAssign ?? []) as unknown as RawA[])
+      .filter((a) => a.employee_id)
+      .map((a) => {
+        const s = timeStrToMin(a.start_time ?? a.shift_types?.start_time ?? "00:00");
+        let e = timeStrToMin(a.end_time ?? a.shift_types?.end_time ?? "00:00");
+        if (e <= s) e += 1440;
+        return { s, e };
+      }),
+    (bandData ?? []) as RequirementBandLite[],
+  );
 
   const staff = (staffData ?? []) as Pick<Profile, "id" | "full_name">[];
   const nameById = new Map(staff.map((s) => [s.id, s.full_name ?? "Unnamed"]));
@@ -73,6 +106,22 @@ export default async function AnalyticsPage() {
         <Metric label="Leave requests" value={leaves.length} />
         <Metric label="Gaps covered" value={`${covered} / ${covered + openGaps}`} />
       </div>
+
+      {todaySeries.points.length > 0 && (
+        <div className="mt-6 rounded-[20px] border border-slate-200 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Coverage today</h2>
+            <CoverageChartLegend />
+          </div>
+          <div className="mt-3">
+            <CoverageChart
+              points={todaySeries.points}
+              startMin={todaySeries.startMin}
+              endMin={todaySeries.endMin}
+            />
+          </div>
+        </div>
+      )}
 
       <Section title="Hours scheduled (most worked)">
         {byHours.length === 0 ? (

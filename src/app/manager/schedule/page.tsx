@@ -69,7 +69,7 @@ export default async function ScheduleListPage() {
           <Link
             key={p.id}
             href={`/manager/schedule/${p.id}`}
-            className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-400"
+            className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-violet/60"
           >
             <span className="font-medium">
               {formatDate(p.start_date)} – {formatDate(p.end_date)}

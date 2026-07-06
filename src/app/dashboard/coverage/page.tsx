@@ -79,7 +79,7 @@ export default async function CoveragePage() {
                 ) : (
                   <form action={claimCoverage}>
                     <input type="hidden" name="coverage_id" value={c.id} />
-                    <button className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700">
+                    <button className="rounded-lg bg-violet px-3 py-2 text-sm font-medium text-white hover:bg-violet-soft">
                       I&apos;ll cover this
                     </button>
                   </form>

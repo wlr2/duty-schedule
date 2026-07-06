@@ -134,7 +134,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
             <button
               onClick={enable}
               disabled={busy}
-              className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-lg bg-violet px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-soft disabled:opacity-50"
             >
               Enable
             </button>

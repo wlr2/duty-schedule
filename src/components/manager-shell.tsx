@@ -84,7 +84,7 @@ export function ManagerShell({
               href={href}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${
                 isActive(pathname, href)
-                  ? "bg-slate-900 text-white"
+                  ? "bg-violet text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -104,7 +104,7 @@ export function ManagerShell({
                 href={href}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium ${
                   isActive(pathname, href)
-                    ? "bg-slate-900 text-white"
+                    ? "bg-violet text-white"
                     : "text-slate-700 hover:bg-slate-100"
                 }`}
               >

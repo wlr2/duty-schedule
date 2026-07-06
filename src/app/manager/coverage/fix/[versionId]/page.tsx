@@ -140,7 +140,7 @@ export default async function RepairPreviewPage({
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <form action={publishDraftVersion}>
             <input type="hidden" name="version_id" value={version.id} />
-            <SubmitButton className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
+            <SubmitButton className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
               Publish schedule
             </SubmitButton>
           </form>

@@ -96,7 +96,7 @@ export default async function PositionsPage() {
                         {employees.map((e) => (
                           <label
                             key={e.id}
-                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white"
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs has-[:checked]:border-violet has-[:checked]:bg-violet has-[:checked]:text-white"
                           >
                             <input
                               type="checkbox"

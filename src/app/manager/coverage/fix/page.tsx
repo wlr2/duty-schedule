@@ -90,7 +90,7 @@ export default async function FixSchedulePage() {
             <div className="flex items-center gap-2">
               <form action={autoFillPeriod}>
                 <input type="hidden" name="period_id" value={period.id} />
-                <SubmitButton className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+                <SubmitButton className="inline-flex items-center gap-1.5 rounded-lg bg-violet px-3.5 py-2 text-sm font-semibold text-white hover:bg-violet-soft">
                   <Wand2 size={15} aria-hidden /> Auto-fill
                 </SubmitButton>
               </form>
