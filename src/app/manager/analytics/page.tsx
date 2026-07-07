@@ -2,10 +2,15 @@ import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { timeToHours } from "@/lib/format";
 import { LEAVE_REASONS } from "@/lib/leave";
+import { addDaysISO, dayOfWeekISO, timeStrToMin, todayISO } from "@/lib/scheduler";
+import { buildCoverageSeries, type RequirementBandLite } from "@/lib/coverage-series";
+import { CoverageChart, CoverageChartLegend } from "@/components/coverage-chart";
+import { VBarChart } from "@/components/vbar-chart";
 import type { LeaveRequest, Profile } from "@/lib/types";
 
 interface RawA {
   employee_id: string | null;
+  work_date?: string;
   start_time: string | null;
   end_time: string | null;
   shift_types: { start_time: string; end_time: string } | null;
@@ -16,33 +21,86 @@ export default async function AnalyticsPage() {
   const orgId = session.profile!.org_id;
 
   const supabase = await createClient();
-  const [{ data: staffData }, { data: assignData }, { data: leaveData }, { data: covData }] =
-    await Promise.all([
-      supabase.from("profiles").select("id, full_name").eq("org_id", orgId).eq("role", "employee"),
-      supabase
-        .from("assignments")
-        .select("employee_id, start_time, end_time, shift_types(start_time, end_time)")
-        .eq("org_id", orgId),
-      supabase.from("leave_requests").select("employee_id, category, status").eq("org_id", orgId),
-      supabase.from("coverage_requests").select("status").eq("org_id", orgId),
-    ]);
+  const today = todayISO();
+  const [
+    { data: staffData },
+    { data: assignData },
+    { data: leaveData },
+    { data: covData },
+    { data: todayAssign },
+    { data: bandData },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, target_hours_per_week")
+      .eq("org_id", orgId)
+      .eq("role", "employee"),
+    supabase
+      .from("assignments")
+      .select("employee_id, work_date, start_time, end_time, shift_types(start_time, end_time)")
+      .eq("org_id", orgId),
+    supabase.from("leave_requests").select("employee_id, category, status").eq("org_id", orgId),
+    supabase.from("coverage_requests").select("status").eq("org_id", orgId),
+    supabase
+      .from("assignments")
+      .select("start_time, end_time, status, employee_id, shift_types(start_time, end_time)")
+      .eq("org_id", orgId)
+      .eq("work_date", today),
+    supabase
+      .from("coverage_requirements")
+      .select("day_of_week, start_time, end_time, min_headcount")
+      .eq("org_id", orgId),
+  ]);
 
-  const staff = (staffData ?? []) as Pick<Profile, "id" | "full_name">[];
+  // Signature staffed-vs-required chart for today (same component as Overview).
+  const todaySeries = buildCoverageSeries(
+    today,
+    ((todayAssign ?? []) as unknown as RawA[])
+      .filter((a) => a.employee_id)
+      .map((a) => {
+        const s = timeStrToMin(a.start_time ?? a.shift_types?.start_time ?? "00:00");
+        let e = timeStrToMin(a.end_time ?? a.shift_types?.end_time ?? "00:00");
+        if (e <= s) e += 1440;
+        return { s, e };
+      }),
+    (bandData ?? []) as RequirementBandLite[],
+  );
+
+  const staff = (staffData ?? []) as Pick<Profile, "id" | "full_name" | "target_hours_per_week">[];
   const nameById = new Map(staff.map((s) => [s.id, s.full_name ?? "Unnamed"]));
 
-  // Hours scheduled per employee.
+  // Hours scheduled per employee (all time + this calendar week).
+  const weekStart = addDaysISO(today, -((dayOfWeekISO(today) + 6) % 7)); // Monday
+  const weekEnd = addDaysISO(weekStart, 6);
   const hours: Record<string, number> = {};
-  for (const s of staff) hours[s.id] = 0;
+  const weekHours: Record<string, number> = {};
+  for (const s of staff) {
+    hours[s.id] = 0;
+    weekHours[s.id] = 0;
+  }
   for (const a of (assignData ?? []) as unknown as RawA[]) {
     if (!a.employee_id) continue;
     const st = timeToHours(a.start_time ?? a.shift_types?.start_time);
     const en = timeToHours(a.end_time ?? a.shift_types?.end_time);
-    if (st != null && en != null && en > st) hours[a.employee_id] = (hours[a.employee_id] ?? 0) + (en - st);
+    if (st == null || en == null || en <= st) continue;
+    const len = en - st;
+    hours[a.employee_id] = (hours[a.employee_id] ?? 0) + len;
+    if (a.work_date && a.work_date >= weekStart && a.work_date <= weekEnd) {
+      weekHours[a.employee_id] = (weekHours[a.employee_id] ?? 0) + len;
+    }
   }
   const byHours = [...staff]
-    .map((s) => ({ name: s.full_name ?? "Unnamed", value: Math.round(hours[s.id] ?? 0) }))
+    .map((s) => ({ label: s.full_name ?? "Unnamed", value: Math.round(hours[s.id] ?? 0) }))
     .sort((a, b) => b.value - a.value);
-  const maxHours = Math.max(1, ...byHours.map((x) => x.value));
+
+  // This week vs required hours: spot who is over or under their target.
+  const weekVsRequired = [...staff]
+    .map((s) => ({
+      name: s.full_name ?? "Unnamed",
+      scheduled: Math.round((weekHours[s.id] ?? 0) * 10) / 10,
+      required: s.target_hours_per_week ?? 0,
+    }))
+    .sort((a, b) => b.scheduled - a.scheduled);
 
   // Leave: per category, and per employee.
   const leaves = (leaveData ?? []) as Pick<LeaveRequest, "employee_id" | "category" | "status">[];
@@ -74,11 +132,75 @@ export default async function AnalyticsPage() {
         <Metric label="Gaps covered" value={`${covered} / ${covered + openGaps}`} />
       </div>
 
-      <Section title="Hours scheduled (most worked)">
-        {byHours.length === 0 ? (
+      {todaySeries.points.length > 0 && (
+        <div className="mt-6 rounded-[20px] border border-slate-200 bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Coverage today</h2>
+            <CoverageChartLegend />
+          </div>
+          <div className="mt-3">
+            <CoverageChart
+              points={todaySeries.points}
+              startMin={todaySeries.startMin}
+              endMin={todaySeries.endMin}
+            />
+          </div>
+        </div>
+      )}
+
+      <Section title="Hours scheduled">
+        {byHours.length === 0 || byHours.every((x) => x.value === 0) ? (
           <Empty>No scheduled hours yet.</Empty>
         ) : (
-          byHours.map((x) => <Bar key={x.name} label={x.name} value={x.value} max={maxHours} suffix="h" />)
+          <div className="rounded-[20px] border border-slate-200 bg-card p-4">
+            <VBarChart items={byHours} suffix="h" />
+          </div>
+        )}
+      </Section>
+
+      <Section title="This week vs required hours">
+        {weekVsRequired.length === 0 ? (
+          <Empty>No staff yet.</Empty>
+        ) : (
+          <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-card">
+            <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
+              Week of {weekStart} — instantly spot who is over or under their required hours.
+            </p>
+            {weekVsRequired.map((x) => {
+              const pct =
+                x.required > 0 ? Math.min(140, Math.round((100 * x.scheduled) / x.required)) : 0;
+              const over = x.required > 0 && x.scheduled > x.required;
+              return (
+                <div
+                  key={x.name}
+                  className="flex items-center gap-3 border-b border-slate-100 px-4 py-2.5 last:border-0"
+                >
+                  <span className="w-32 shrink-0 truncate text-sm font-medium">{x.name}</span>
+                  <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full ${over ? "bg-gold" : "bg-violet"}`}
+                      style={{ width: `${Math.min(100, (pct / 140) * 100)}%`, opacity: 0.9 }}
+                    />
+                    {x.required > 0 && (
+                      <span
+                        className="absolute top-0 h-full w-0.5 bg-slate-400"
+                        style={{ left: `${(100 / 140) * 100}%` }}
+                        title="Required hours"
+                      />
+                    )}
+                  </div>
+                  <span className="w-32 shrink-0 text-right text-sm tabular-nums">
+                    {x.scheduled}h / {x.required}h
+                    {over && (
+                      <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                        +{Math.round((x.scheduled - x.required) * 10) / 10}h over
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </Section>
 
@@ -96,7 +218,7 @@ export default async function AnalyticsPage() {
         {topLeave.length === 0 ? (
           <Empty>No leave requested yet.</Empty>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-card">
             {topLeave.map((x) => (
               <div key={x.name} className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5 last:border-0">
                 <span className="text-sm font-medium">{x.name}</span>
@@ -157,5 +279,5 @@ function Bar({
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">{children}</p>;
+  return <p className="rounded-xl border border-slate-200 bg-card px-4 py-6 text-sm text-slate-500">{children}</p>;
 }

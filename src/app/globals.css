@@ -1,39 +1,240 @@
 @import "tailwindcss";
 
-/* DutyRoster uses a single, clean light theme so text is always dark on light
-   backgrounds — regardless of the operating system's dark-mode setting. */
+/* ============================================================================
+   DutyRoster design tokens — dark violet system with an equally elegant
+   light mode. All palette utilities resolve to the runtime variables below,
+   so adding `class="light"` on <html> re-themes every screen instantly.
+   ========================================================================== */
 
-:root {
-  color-scheme: light; /* keep native inputs/dropdowns light, not OS-dark */
-  --background: #f8fafc; /* slate-50  */
-  --foreground: #0f172a; /* slate-900 */
+/* Display face: Clash Display (Fontshare Free Font License, bundled). */
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
+/* ---- DARK (default) -------------------------------------------------------- */
+:root {
+  color-scheme: dark;
+  --t-canvas: #0a0a0c;
+  --t-card: #151419;
+  --t-fill: #1c1b21; /* table heads, subtle fills, inputs */
+  --t-fill2: #232129; /* hover fills, row dividers */
+  --t-border: #26252c;
+  --t-border2: #34323c;
+  --t-faint: #6e6c78;
+  --t-meta: #8b8992;
+  --t-muted: #a5a3ae;
+  --t-label: #cbc9d4;
+  --t-strong: #e2e0ea;
+  --t-heading: #f5f4f7;
+
+  --t-gold: #e9c46a; /* dashed "required" line */
+  --t-grid: #26252c; /* chart gridlines */
+  --t-axis: #5a5860; /* chart axis labels */
+
+  --t-blue50: #201a38;
+  --t-blue200: #4a3e85;
+  --t-blue600: #a98bff;
+  --t-blue700: #b9a3ff;
+  --t-green100: #123528;
+  --t-green600: #18a566;
+  --t-green700: #4ade9c;
+  --t-green800: #7ce7b8;
+  --t-red50: #2b121b;
+  --t-red100: #3a1523;
+  --t-red200: #5a2136;
+  --t-red300: #6e2b44;
+  --t-red600: #ff4d6d;
+  --t-red700: #ff7d96;
+  --t-red900: #ffb3c4;
+  --t-amber50: #2a2414;
+  --t-amber200: #57491f;
+  --t-amber300: #6e5c26;
+  --t-amber700: #e9c46a;
+  --t-amber800: #eed288;
+  --t-amber900: #efd79a;
+
+  /* Shared accents (both themes) */
+  --violet: #7c5cff;
+  --violet-soft: #6a4deb;
+  --grad-hero: linear-gradient(135deg, #8257fe 0%, #b15ce0 45%, #f0996a 100%);
+}
+
+/* ---- LIGHT ------------------------------------------------------------------ */
+html.light {
+  color-scheme: light;
+  --t-canvas: #f6f5fa;
+  --t-card: #ffffff;
+  --t-fill: #f1eff7;
+  --t-fill2: #e9e7f1;
+  --t-border: #e4e2ec;
+  --t-border2: #d5d3e0;
+  --t-faint: #9b99a6;
+  --t-meta: #6d6b78;
+  --t-muted: #55535f;
+  --t-label: #3b3944;
+  --t-strong: #26242e;
+  --t-heading: #17161c;
+
+  --t-gold: #c0902a;
+  --t-grid: #e4e2ec;
+  --t-axis: #9b99a6;
+
+  --t-blue50: #eeeafd;
+  --t-blue200: #cabffa;
+  --t-blue600: #6a48f0;
+  --t-blue700: #5a3ad8;
+  --t-green100: #d9f5e7;
+  --t-green600: #0f9d61;
+  --t-green700: #0b7d4d;
+  --t-green800: #07603b;
+  --t-red50: #feecf0;
+  --t-red100: #fcdae2;
+  --t-red200: #f8b8c7;
+  --t-red300: #f294ab;
+  --t-red600: #e0234e;
+  --t-red700: #b81b40;
+  --t-red900: #7d1230;
+  --t-amber50: #fdf5e3;
+  --t-amber200: #f3ddad;
+  --t-amber300: #e9c46a;
+  --t-amber700: #8a6a1c;
+  --t-amber800: #6d5316;
+  --t-amber900: #574212;
+}
+
+/* ---- Map the Tailwind palette onto the runtime tokens ----------------------- */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-background: var(--t-canvas);
+  --color-foreground: var(--t-heading);
+
+  /* true white stays white (button/band text); cards use their own token */
+  --color-white: #ffffff;
+  --color-card: var(--t-card);
+  --color-slate-50: var(--t-fill);
+  --color-slate-100: var(--t-fill2);
+  --color-slate-200: var(--t-border);
+  --color-slate-300: var(--t-border2);
+  --color-slate-400: var(--t-faint);
+  --color-slate-500: var(--t-meta);
+  --color-slate-600: var(--t-muted);
+  --color-slate-700: var(--t-label);
+  --color-slate-800: var(--t-strong);
+  --color-slate-900: var(--t-heading);
+
+  --color-violet: #7c5cff;
+  --color-violet-soft: #6a4deb;
+  --color-gold: var(--t-gold);
+  --color-surface2: var(--t-fill);
+
+  --color-blue-50: var(--t-blue50);
+  --color-blue-200: var(--t-blue200);
+  --color-blue-600: var(--t-blue600);
+  --color-blue-700: var(--t-blue700);
+
+  --color-green-100: var(--t-green100);
+  --color-green-600: var(--t-green600);
+  --color-green-700: var(--t-green700);
+  --color-green-800: var(--t-green800);
+
+  --color-red-50: var(--t-red50);
+  --color-red-100: var(--t-red100);
+  --color-red-200: var(--t-red200);
+  --color-red-300: var(--t-red300);
+  --color-red-600: var(--t-red600);
+  --color-red-700: var(--t-red700);
+  --color-red-900: var(--t-red900);
+
+  --color-amber-50: var(--t-amber50);
+  --color-amber-200: var(--t-amber200);
+  --color-amber-300: var(--t-amber300);
+  --color-amber-700: var(--t-amber700);
+  --color-amber-800: var(--t-amber800);
+  --color-amber-900: var(--t-amber900);
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
 html {
-  background: var(--background);
+  background: var(--t-canvas);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", Arial,
-    sans-serif;
+  background: var(--t-canvas);
+  color: var(--t-heading);
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-variant-numeric: tabular-nums; /* times & counts align everywhere */
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ensure form controls always read as dark text on white. */
+/* Display face on titles and hero numbers. */
+h1,
+h2,
+.font-display {
+  font-family: "Clash Display", var(--font-inter), system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* Form controls follow the theme. */
 input,
 select,
 textarea {
-  color: var(--foreground);
+  color: var(--t-heading);
+  background-color: var(--t-fill);
 }
 input::placeholder,
 textarea::placeholder {
-  color: #94a3b8; /* slate-400 */
+  color: var(--t-faint);
+}
+
+/* Visible keyboard focus, violet. */
+:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+/* Depth on dark = glow, not shadow (softer in light mode). */
+.glow-violet {
+  box-shadow: 0 0 24px rgba(124, 92, 255, 0.35);
+}
+html.light .glow-violet {
+  box-shadow: 0 8px 24px rgba(124, 92, 255, 0.25);
+}
+.bg-grad-hero {
+  background: var(--grad-hero);
+}
+
+/* Restrained entrance for page sections. */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-in {
+  animation: fadeUp 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -2,11 +2,25 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { generateForPeriod } from "@/lib/schedule-runner";
+import { executeMemoryCommand } from "@/lib/assistant-memory";
+import { minToTimeStr, todayISO } from "@/lib/scheduler";
 
 // Use the latest capable model. Switch to "claude-haiku-4-5" here for lower cost.
 const MODEL = "claude-opus-4-8";
 
 const COLORS = ["#2563eb", "#0d9488", "#b45309", "#7c3aed", "#db2777", "#0891b2", "#65a30d"];
+
+// Tools that change data. They only execute when the manager has confirmed
+// (the client sends confirmed: true after the manager clicks "Yes, apply it").
+const WRITE_TOOLS = new Set([
+  "create_position",
+  "delete_position",
+  "set_eligibility",
+  "generate_schedule",
+]);
+
+// Marker the model appends when it is waiting for the manager's go-ahead.
+const CONFIRM_MARKER = "[CONFIRM_REQUIRED]";
 
 function systemPrompt(today: string) {
   return `You are the scheduling assistant for DutyRoster, a duty/shift scheduling app. You help a MANAGER set up their schedule by talking to them in plain language and calling tools. Today is ${today}.
@@ -20,13 +34,28 @@ ADAPT TO THE MANAGER'S CONTEXT — this is the most important thing:
 - MILITARY / GUARD / NATIONAL SERVICE (NS) duty (posts like Sentry, PAC, VAC, Guard): use ROTATION. Typically headcount 1 per post, rotate every 2 hours with 2 hours rest, everyone eligible. Create one position per post over the guard window (ask the window if unknown, e.g. 08:00–20:00 or 24h).
 - NORMAL JOBS (restaurant, retail, warehouse, hospital, events): usually CONTINUOUS shifts with a headcount (e.g. "5 dishwashers, 11:00–22:00"). Create one position per role and set who is eligible for it.
 
+CONFIRMATION PROTOCOL — never change anything without the manager's OK:
+- Reading (list_positions, list_staff, get_schedule) is always allowed; just do it.
+- Any CHANGE (create/delete positions, eligibility, generating a schedule) must be confirmed first. When you are ready to make changes, DO NOT call the write tools yet. Instead, present the complete plan in plain language (every position: window, headcount, rotation, eligibility; every deletion; the date range of any schedule), then end your reply with the exact line:
+${CONFIRM_MARKER}
+- If a write tool returns "BLOCKED", that means confirmation is still missing — present the plan as above instead of retrying.
+- Once the manager confirms, call the tools and report what you did.
+
 YOUR JOB:
 1. Understand what they run. Ask SHORT clarifying questions only when you truly need them (hours, how many at once, rotating vs continuous).
-2. Call tools to create/update positions and eligibility. Use list_staff before setting eligibility — only use names that exist, and tell the manager if some are missing.
-3. After configuring, briefly summarise what you set up and suggest the next step (generate a schedule, or add staff).
+2. Use list_staff before proposing eligibility — only use names that exist, and tell the manager if some are missing.
+3. Summarize schedules in plain English when asked (use get_schedule): who works when, total coverage, anything unusual.
+4. If a generated schedule has unfilled slots, explain the likely cause in plain words (too few eligible people, rest rules, availability) and suggest the smallest fix — e.g. "add one more person eligible for PAC, or shorten the overnight window".
+
+MEMORY — you have a private org notebook at /memories (the memory tool):
+- At the START of a conversation, view /memories and read whichever files are relevant before acting. Apply what you learned there without being re-told.
+- Save durable SOFT knowledge the database does not hold: scheduling conventions (e.g. "overnight is always 1 person"), manager preferences and tone, soft people notes ("X prefers no back-to-back nights"), and every correction the manager gives you (corrections.md).
+- Do NOT copy facts the database owns (staff, positions, requirements) into memory — read those with the other tools.
+- Keep files short and current: edit or replace outdated lines instead of appending forever. Suggested files: company_profile.md, scheduling_conventions.md, manager_preferences.md, people_notes.md, corrections.md.
+- The manager can see and edit everything you store, so write plainly.
 
 RULES:
-- Times are 24-hour "HH:MM". Be concise and friendly. Don't invent staff. Don't ask more than 1–2 questions at a time. If the manager gives enough detail, just do it.`;
+- Times are 24-hour "HH:MM". Be concise and friendly. Don't invent staff. Don't ask more than 1–2 questions at a time. If the manager gives enough detail, propose the plan right away.`;
 }
 
 interface ToolOutcome {
@@ -85,6 +114,32 @@ async function executeTool(
     return { result: JSON.stringify(staff.map((s) => s.full_name ?? "Unnamed")) };
   }
 
+  if (name === "get_schedule") {
+    const start = String(input.start_date ?? "");
+    const end = String(input.end_date ?? "");
+    if (!start || !end) return { result: "Error: start_date and end_date (YYYY-MM-DD) required." };
+    const { data, error } = await supabase
+      .from("assignments")
+      .select("work_date, start_time, end_time, status, shift_types(name), profiles(full_name)")
+      .eq("org_id", orgId)
+      .gte("work_date", start)
+      .lte("work_date", end)
+      .order("work_date")
+      .order("start_time")
+      .limit(500);
+    if (error) return { result: `Error: ${error.message}` };
+    const rows = (data ?? []).map((a) => {
+      const pos = (a.shift_types as unknown as { name: string } | null)?.name ?? "?";
+      const who = (a.profiles as unknown as { full_name: string | null } | null)?.full_name;
+      return `${a.work_date} ${a.start_time ?? ""}-${a.end_time ?? ""} ${pos}: ${
+        who ?? `UNFILLED (${a.status})`
+      }`;
+    });
+    return {
+      result: rows.length === 0 ? "No assignments in that range." : rows.join("\n"),
+    };
+  }
+
   if (name === "create_position") {
     const posName = String(input.name ?? "").trim();
     const start = String(input.start_time ?? "");
@@ -110,6 +165,17 @@ async function executeTool(
       .select("id")
       .single();
     if (error || !pos) return { result: `Error creating position: ${error?.message}` };
+
+    // Keep the Phase 1 keystone in sync: one daily coverage band mirroring the
+    // position window (Phase 3 reads these; multi-band editing comes later).
+    await supabase.from("coverage_requirements").insert({
+      org_id: orgId,
+      position_id: pos.id,
+      day_of_week: null,
+      start_time: start,
+      end_time: end,
+      min_headcount: headcount,
+    });
 
     let eligibilityNote = "everyone eligible";
     const eligibleNames = Array.isArray(input.eligible_names)
@@ -183,14 +249,35 @@ async function executeTool(
       .single();
     if (error || !period) return { result: `Error: ${error?.message}` };
     const res = await generateForPeriod(supabase, orgId, period);
+
+    // Structured solver diagnostics: which slots failed, and why each person
+    // was blocked — the model turns this into a plain-English explanation.
+    let gapDetail = "";
+    if (res.gapDetails.length > 0) {
+      const lines = res.gapDetails.slice(0, 12).map((g) => {
+        const why = g.reasons.length > 0 ? ` — ${g.reasons.slice(0, 4).join("; ")}` : "";
+        return `${g.date} ${minToTimeStr(g.startMin)}-${minToTimeStr(g.endMin)} ${g.positionName}: ${g.missing} short${why}`;
+      });
+      gapDetail = ` UNFILLED (with per-person blockers):\n${lines.join("\n")}`;
+    }
+    let relaxNote = "";
+    if (res.relaxations.length > 0) {
+      const byRule: Record<string, number> = {};
+      for (const r of res.relaxations) byRule[r.rule] = (byRule[r.rule] ?? 0) + 1;
+      relaxNote = ` NOTE: coverage required bending soft rules ${JSON.stringify(byRule)} (rest/hour/consecutive-day exceptions — tell the manager honestly).`;
+    }
     return {
-      result: `Draft schedule created for ${start} to ${end}. ${res.gaps} unfilled slot(s). The manager can review and publish it under "Schedule".`,
+      result: `Draft schedule created for ${start} to ${end}. ${res.gaps} unfilled slot(s). The manager can review and publish it under "Schedule".${gapDetail}${relaxNote}`,
       action: `Generated draft schedule (${res.gaps} gaps)`,
     };
   }
 
   return { result: `Unknown tool: ${name}` };
 }
+
+// The Anthropic-hosted Memory Tool (GA): the model issues file commands that
+// we execute against the org-scoped store in assistant-memory.ts.
+const MEMORY_TOOL = { type: "memory_20250818", name: "memory" } as const;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -204,9 +291,22 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "get_schedule",
+    description:
+      "Read the roster between two dates: who works which position and when, including unfilled slots. Use for summaries and questions like 'who's on duty Friday?'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string", description: "YYYY-MM-DD" },
+      },
+      required: ["start_date", "end_date"],
+    },
+  },
+  {
     name: "create_position",
     description:
-      "Create a position (a role that needs people on duty). Use rotation for guard/NS posts, continuous for normal jobs.",
+      "Create a position (a role that needs people on duty). Use rotation for guard/NS posts, continuous for normal jobs. Requires manager confirmation first.",
     input_schema: {
       type: "object",
       properties: {
@@ -232,7 +332,7 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "delete_position",
-    description: "Delete a position by name.",
+    description: "Delete a position by name. Requires manager confirmation first.",
     input_schema: {
       type: "object",
       properties: { name: { type: "string" } },
@@ -241,7 +341,8 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "set_eligibility",
-    description: "Set which staff can work a position (replaces the current list). Empty list = everyone.",
+    description:
+      "Set which staff can work a position (replaces the current list). Empty list = everyone. Requires manager confirmation first.",
     input_schema: {
       type: "object",
       properties: {
@@ -253,7 +354,8 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "generate_schedule",
-    description: "Generate a DRAFT roster for a date range using the configured positions.",
+    description:
+      "Generate a DRAFT roster for a date range using the configured positions. Requires manager confirmation first.",
     input_schema: {
       type: "object",
       properties: {
@@ -293,7 +395,11 @@ export async function POST(request: Request) {
     });
   }
 
-  let body: { messages?: Anthropic.MessageParam[] };
+  let body: {
+    messages?: Anthropic.MessageParam[];
+    confirmed?: boolean;
+    conversationId?: string | null;
+  };
   try {
     body = await request.json();
   } catch {
@@ -302,40 +408,92 @@ export async function POST(request: Request) {
   const messages: Anthropic.MessageParam[] = Array.isArray(body.messages)
     ? body.messages.slice(-50)
     : [];
+  const confirmed = body.confirmed === true;
+  let conversationId: string | null =
+    typeof body.conversationId === "string" ? body.conversationId : null;
+
+  // Persist the raw conversation per org (Addendum B layer 3).
+  async function persistConversation(msgs: Anthropic.MessageParam[]): Promise<string | null> {
+    try {
+      if (conversationId) {
+        await supabase
+          .from("assistant_conversations")
+          .update({ messages: msgs, updated_at: new Date().toISOString() })
+          .eq("id", conversationId)
+          .eq("org_id", orgId);
+        return conversationId;
+      }
+      const first = msgs.find((m) => m.role === "user" && typeof m.content === "string");
+      const title = first ? String(first.content).slice(0, 80) : "Conversation";
+      const { data } = await supabase
+        .from("assistant_conversations")
+        .insert({ org_id: orgId, user_id: user!.id, title, messages: msgs })
+        .select("id")
+        .single();
+      return (data?.id as string) ?? null;
+    } catch {
+      return conversationId;
+    }
+  }
 
   const anthropic = new Anthropic({ apiKey });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const actions: string[] = [];
+  let blockedWrite = false;
 
   try {
-    for (let i = 0; i < 6; i++) {
+    // Memory reads add a turn or two, so allow a slightly longer loop.
+    for (let i = 0; i < 8; i++) {
       const resp = await anthropic.messages.create({
         model: MODEL,
-        max_tokens: 1500,
+        max_tokens: 2000,
         system: systemPrompt(today),
-        tools: TOOLS,
+        tools: [...TOOLS, MEMORY_TOOL as unknown as Anthropic.Tool],
         messages,
       });
       messages.push({ role: "assistant", content: resp.content });
 
       if (resp.stop_reason !== "tool_use") {
-        const reply = resp.content
+        let reply = resp.content
           .filter((b): b is Anthropic.TextBlock => b.type === "text")
           .map((b) => b.text)
           .join("\n")
           .trim();
-        return Response.json({ reply, actions, messages });
+        const needsConfirm = blockedWrite || reply.includes(CONFIRM_MARKER);
+        reply = reply.split(CONFIRM_MARKER).join("").trim();
+        conversationId = await persistConversation(messages);
+        return Response.json({ reply, actions, messages, needsConfirm, conversationId });
       }
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const block of resp.content) {
         if (block.type === "tool_use") {
-          const outcome = await executeTool(
-            supabase,
-            orgId,
-            block.name,
-            (block.input ?? {}) as Record<string, unknown>,
-          );
+          let outcome: ToolOutcome;
+          if (block.name === "memory") {
+            // The assistant's own notebook — org-scoped, path-validated, and
+            // manager-auditable, so it is exempt from the confirm gate.
+            outcome = {
+              result: await executeMemoryCommand(
+                supabase,
+                orgId,
+                (block.input ?? {}) as Record<string, unknown>,
+              ),
+            };
+          } else if (WRITE_TOOLS.has(block.name) && !confirmed) {
+            blockedWrite = true;
+            outcome = {
+              result:
+                "BLOCKED — manager confirmation required. Do not retry. Present the full plan of every change in plain language, then end your reply with the exact line " +
+                CONFIRM_MARKER,
+            };
+          } else {
+            outcome = await executeTool(
+              supabase,
+              orgId,
+              block.name,
+              (block.input ?? {}) as Record<string, unknown>,
+            );
+          }
           if (outcome.action) actions.push(outcome.action);
           toolResults.push({
             type: "tool_result",
@@ -346,10 +504,13 @@ export async function POST(request: Request) {
       }
       messages.push({ role: "user", content: toolResults });
     }
+    conversationId = await persistConversation(messages);
     return Response.json({
       reply: "That took a few steps — could you confirm what you'd like me to do next?",
       actions,
       messages,
+      needsConfirm: blockedWrite,
+      conversationId,
     });
   } catch (err) {
     console.error("Assistant error:", err);

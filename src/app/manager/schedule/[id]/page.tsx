@@ -133,14 +133,14 @@ export default async function ScheduleReviewPage({
             )}
             <form action={regeneratePeriod}>
               <input type="hidden" name="period_id" value={p.id} />
-              <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100">
+              <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-card px-3 py-2 text-sm font-medium hover:bg-slate-100">
                 <RefreshCw size={15} aria-hidden /> Regenerate
               </button>
             </form>
             {p.status === "draft" && (
               <form action={publishPeriod}>
                 <input type="hidden" name="period_id" value={p.id} />
-                <button className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
+                <button className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90">
                   <Check size={15} aria-hidden /> Publish
                 </button>
               </form>
@@ -149,7 +149,7 @@ export default async function ScheduleReviewPage({
               <input type="hidden" name="period_id" value={p.id} />
               <ConfirmSubmit
                 message={`Delete this ${p.status} schedule? This cannot be undone.`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-card px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
               >
                 <Trash2 size={15} aria-hidden /> Delete
               </ConfirmSubmit>
@@ -158,7 +158,7 @@ export default async function ScheduleReviewPage({
         </div>
 
         {/* Everything inside #roster-capture is included in the exported image. */}
-        <div id="roster-capture" className="mt-4 rounded-xl bg-white p-4">
+        <div id="roster-capture" className="mt-4 rounded-xl bg-card p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-slate-800">
               {org.name} — duty roster
@@ -188,7 +188,7 @@ export default async function ScheduleReviewPage({
 
           <div className="space-y-8">
             {duties.length === 0 ? (
-              <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+              <p className="rounded-xl border border-slate-200 bg-card px-4 py-8 text-center text-sm text-slate-500">
                 No duties yet. Click <strong>Regenerate</strong>, or seed a roster.
               </p>
             ) : (

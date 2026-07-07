@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import { logoutAction } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { Role } from "@/lib/types";
 
 export async function AppHeader({
@@ -32,13 +33,14 @@ export async function AppHeader({
   }
 
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-slate-200 bg-card">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
         <Link href={home} className="flex items-center gap-2 font-semibold">
           <Logo size={28} />
           {orgName}
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <ThemeToggle />
           {/* Notification bell */}
           <Link
             href="/notifications"

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/manager", label: "Overview", Icon: LayoutDashboard },
@@ -48,13 +49,14 @@ export function ManagerShell({
   return (
     <div className="flex min-h-full flex-col">
       {/* Top bar */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-card">
         <div className="flex items-center justify-between px-4 py-3">
           <Link href="/manager" className="flex items-center gap-2 font-semibold">
             <Logo size={28} />
             <span className="truncate">{orgName}</span>
           </Link>
           <div className="flex items-center gap-3 text-sm">
+            <ThemeToggle />
             <Link
               href="/notifications"
               className="relative rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
@@ -84,7 +86,7 @@ export function ManagerShell({
               href={href}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${
                 isActive(pathname, href)
-                  ? "bg-slate-900 text-white"
+                  ? "bg-violet text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -96,7 +98,7 @@ export function ManagerShell({
 
       <div className="flex flex-1">
         {/* Sidebar (desktop) */}
-        <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white md:block">
+        <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-card md:block">
           <nav className="sticky top-0 space-y-1 p-3">
             {NAV.map(({ href, label, Icon }) => (
               <Link
@@ -104,7 +106,7 @@ export function ManagerShell({
                 href={href}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium ${
                   isActive(pathname, href)
-                    ? "bg-slate-900 text-white"
+                    ? "bg-violet text-white"
                     : "text-slate-700 hover:bg-slate-100"
                 }`}
               >

@@ -6,14 +6,13 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { LEAVE_REASONS, leaveLabel, leaveStatus } from "@/lib/leave";
+import { addDaysISO, todayISO } from "@/lib/scheduler";
 import { inputClass, labelClass } from "@/lib/ui";
 import type { LeaveRequest } from "@/lib/types";
 import { submitLeave } from "../actions";
 
 function isoDate(offset = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(todayISO(), offset);
 }
 
 export default async function LeavePage() {
@@ -45,7 +44,7 @@ export default async function LeavePage() {
 
         <form
           action={submitLeave}
-          className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5"
+          className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-card p-5"
         >
           <div>
             <label className={labelClass} htmlFor="category">Reason</label>
@@ -83,7 +82,7 @@ export default async function LeavePage() {
             return (
               <div
                 key={r.id}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-card px-4 py-3"
                 style={{ borderLeft: `4px solid ${border}` }}
               >
                 <div>

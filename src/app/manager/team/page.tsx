@@ -37,9 +37,9 @@ export default async function PositionsPage() {
     <div className="mx-auto w-full max-w-3xl">
         <h1 className="text-2xl font-bold">Positions</h1>
         <p className="mt-1 text-slate-600">
-          A position is a role that needs people on duty — e.g. Sentry (1 at a
-          time, rotating) or Dishwasher (5 at once, one shift). The scheduler keeps
-          each one continuously covered.
+          Positions are the duties you need covered — what the job is, how many
+          people at once, and when. DutyRoster keeps every one of them staffed
+          around the clock.
         </p>
 
         {/* Existing positions */}
@@ -56,7 +56,7 @@ export default async function PositionsPage() {
             return (
               <div
                 key={p.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5"
+                className="rounded-2xl border border-slate-200 bg-card p-5"
                 style={{ borderLeft: `5px solid ${p.color}` }}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -96,7 +96,7 @@ export default async function PositionsPage() {
                         {employees.map((e) => (
                           <label
                             key={e.id}
-                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white"
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs has-[:checked]:border-violet has-[:checked]:bg-violet has-[:checked]:text-white"
                           >
                             <input
                               type="checkbox"
@@ -124,7 +124,7 @@ export default async function PositionsPage() {
         {/* Add position */}
         <form
           action={createPosition}
-          className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-5"
+          className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-card p-5"
         >
           <h2 className="font-semibold">Add a position</h2>
 

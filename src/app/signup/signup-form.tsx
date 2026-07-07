@@ -88,7 +88,7 @@ export function SignupForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       )}
 
-      <SubmitButton className="w-full inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60">
+      <SubmitButton className="w-full inline-flex items-center justify-center rounded-lg bg-violet px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-soft disabled:opacity-60">
         {role === "manager" ? "Create my team" : "Join team"}
       </SubmitButton>
 
@@ -116,7 +116,7 @@ function RoleTab({
       type="button"
       onClick={onClick}
       className={`rounded-md px-3 py-2 text-sm font-medium transition ${
-        active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+        active ? "bg-card text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
       }`}
     >
       {title}

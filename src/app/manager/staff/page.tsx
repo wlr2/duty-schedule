@@ -26,7 +26,7 @@ export default async function StaffPage() {
       <h1 className="text-2xl font-bold">Team</h1>
       <p className="mt-1 text-slate-600">Tap a person to see their profile, hours, and leave.</p>
 
-      <div className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-card">
         {staff.length === 0 && (
           <p className="px-4 py-6 text-sm text-slate-500">
             No staff yet — share your join code from the Overview.

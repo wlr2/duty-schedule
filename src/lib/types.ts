@@ -16,6 +16,10 @@ export interface Profile {
   full_name: string | null;
   role: Role;
   target_hours_per_week: number;
+  employment_type: "full_time" | "part_time" | "contingent";
+  // Per-person solver limits (migration 06). 0 / null = no limit.
+  min_rest_hours: number;
+  max_consecutive_days: number | null;
   // Compensation scaffolding (modular — payroll computation added later).
   pay_type: string | null; // 'hourly' | 'salary' | null
   pay_rate: number | null;
@@ -35,6 +39,21 @@ export interface ShiftType {
   required_staff: number; // concurrent headcount
   block_minutes: number | null; // rotation length; null = one continuous shift
   min_rest_minutes: number; // rest between a person's blocks
+  staffing_model: "standing" | "shift" | "continuous_coverage";
+  created_at: string;
+}
+
+/** Keystone (migration 06): headcount demand per position per time band.
+ *  day_of_week null = every day. Multiple bands allow e.g. 2 by day / 1 overnight. */
+export interface CoverageRequirement {
+  id: string;
+  org_id: string;
+  position_id: string;
+  day_of_week: number | null; // 0 = Sunday
+  start_time: string;
+  end_time: string;
+  min_headcount: number;
+  max_headcount: number | null;
   created_at: string;
 }
 
@@ -70,7 +89,7 @@ export interface SchedulePeriod {
   org_id: string;
   start_date: string;
   end_date: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "archived";
   created_at: string;
 }
 
@@ -86,6 +105,26 @@ export interface Assignment {
   start_time: string | null;
   end_time: string | null;
   status: "scheduled" | "open" | "swapped";
+  source: "pattern" | "manual" | "solver";
+  /** Locked rows survive regeneration untouched. */
+  locked: boolean;
+  schedule_version_id: string | null;
+  created_at: string;
+}
+
+/** Addendum A: numbered schedule change. Drafts hold a repair proposal in
+ *  `proposal`; publishing applies it, stamps the publisher and supersedes
+ *  the previous published version. */
+export interface ScheduleVersion {
+  id: string;
+  org_id: string;
+  period_id: string | null;
+  version: number;
+  status: "draft" | "published" | "superseded";
+  note: string | null;
+  proposal: unknown | null;
+  published_at: string | null;
+  published_by: string | null;
   created_at: string;
 }
 

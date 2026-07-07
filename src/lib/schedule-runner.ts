@@ -1,19 +1,25 @@
-// Shared schedule generator: loads positions, eligibility, availability and
-// runs the coverage engine, then (re)writes assignments for a period.
+// Shared schedule generator: loads positions, requirement bands, eligibility,
+// availability, approved leave and locked assignments, runs the solver, then
+// (re)writes the period's assignments (locked rows survive untouched).
 // Used by the manual "Generate" button and the AI assistant.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   datesInRange,
-  generateCoverageSchedule,
   minToTimeStr,
   timeStrToMin,
+  type CoverageAssignment,
   type DayPreference,
   type EngineEmployee,
   type EnginePosition,
+  type RequirementBand,
 } from "@/lib/scheduler";
+import { defaultSolver } from "@/lib/solver";
+import { detectGaps } from "@/lib/gap-detector";
 import type {
   AvailabilityException,
+  CoverageRequirement,
   EmployeePreference,
+  LeaveRequest,
   PositionMember,
   Profile,
   ShiftType,
@@ -25,48 +31,85 @@ export interface PeriodLite {
   end_date: string;
 }
 
-export async function generateForPeriod(
+export interface SolverInputBundle {
+  dates: string[];
+  positions: EnginePosition[];
+  employees: EngineEmployee[];
+  /** Position lookup for converting stored assignment rows to engine terms. */
+  posTimeById: Map<string, ShiftType>;
+}
+
+/** Loads everything the solver needs for a period (positions + requirement
+ *  bands, staff with personal limits, availability, approved leave). Shared
+ *  by full generation and repair mode. */
+export async function loadSolverInput(
   supabase: SupabaseClient,
   orgId: string,
   period: PeriodLite,
-) {
-  const [posRes, empRes, prefsRes, memRes, exRes] = await Promise.all([
+): Promise<SolverInputBundle> {
+  const [posRes, empRes, prefsRes, memRes, exRes, reqRes, leaveRes] = await Promise.all([
     supabase.from("shift_types").select("*").eq("org_id", orgId).order("start_time"),
     supabase
       .from("profiles")
-      .select("id, full_name, target_hours_per_week")
+      .select("id, full_name, target_hours_per_week, min_rest_hours, max_consecutive_days")
       .eq("org_id", orgId)
       .eq("role", "employee"),
-    supabase
-      .from("employee_preferences")
-      .select("employee_id, day_of_week, preference")
-      .eq("org_id", orgId),
+    supabase.from("employee_preferences").select("*").eq("org_id", orgId),
     supabase.from("position_members").select("position_id, employee_id").eq("org_id", orgId),
     supabase
       .from("availability_exceptions")
-      .select("employee_id, work_date")
+      .select("*")
       .eq("org_id", orgId)
       .gte("work_date", period.start_date)
       .lte("work_date", period.end_date),
+    supabase
+      .from("coverage_requirements")
+      .select("position_id, day_of_week, start_time, end_time, min_headcount")
+      .eq("org_id", orgId),
+    supabase
+      .from("leave_requests")
+      .select("employee_id, start_date, end_date")
+      .eq("org_id", orgId)
+      .eq("status", "approved")
+      .lte("start_date", period.end_date)
+      .gte("end_date", period.start_date),
   ]);
 
   const shiftTypes = (posRes.data ?? []) as ShiftType[];
   const staff = (empRes.data ?? []) as Pick<
     Profile,
-    "id" | "full_name" | "target_hours_per_week"
+    "id" | "full_name" | "target_hours_per_week" | "min_rest_hours" | "max_consecutive_days"
   >[];
-  const prefs = (prefsRes.data ?? []) as Pick<
+  const prefs = (prefsRes.data ?? []) as (Pick<
     EmployeePreference,
     "employee_id" | "day_of_week" | "preference"
-  >[];
+  > & { status?: string })[];
   const members = (memRes.data ?? []) as Pick<
     PositionMember,
     "position_id" | "employee_id"
   >[];
-  const exceptions = (exRes.data ?? []) as Pick<
+  const exceptions = (exRes.data ?? []) as (Pick<
     AvailabilityException,
     "employee_id" | "work_date"
+  > & { status?: string })[];
+  const reqRows = (reqRes.data ?? []) as Pick<
+    CoverageRequirement,
+    "position_id" | "day_of_week" | "start_time" | "end_time" | "min_headcount"
   >[];
+  const leaveRows = (leaveRes.data ?? []) as Pick<
+    LeaveRequest,
+    "employee_id" | "start_date" | "end_date"
+  >[];
+
+  const bandsByPos: Record<string, RequirementBand[]> = {};
+  for (const r of reqRows) {
+    (bandsByPos[r.position_id] ??= []).push({
+      dayOfWeek: r.day_of_week,
+      startMin: timeStrToMin(r.start_time),
+      endMin: timeStrToMin(r.end_time),
+      minHeadcount: r.min_headcount,
+    });
+  }
 
   const positions: EnginePosition[] = shiftTypes.map((p) => {
     const eligibleIds = members.filter((m) => m.position_id === p.id).map((m) => m.employee_id);
@@ -80,16 +123,32 @@ export async function generateForPeriod(
       blockMinutes: p.block_minutes ?? 0,
       minRestMinutes: p.min_rest_minutes ?? 0,
       eligible: eligibleIds.length > 0 ? new Set(eligibleIds) : null,
+      bands: bandsByPos[p.id] ?? [],
     };
   });
 
+  // Only APPROVED unavailability blocks scheduling; pending/declined requests
+  // leave the person schedulable (migration 11; older DBs have no status).
   const availByEmp: Record<string, Record<number, DayPreference>> = {};
   for (const pr of prefs) {
-    (availByEmp[pr.employee_id] ??= {})[pr.day_of_week] = pr.preference;
+    const approved = (pr.status ?? "approved") === "approved";
+    const effective: DayPreference =
+      pr.preference === "unavailable" && !approved ? "available" : pr.preference;
+    (availByEmp[pr.employee_id] ??= {})[pr.day_of_week] = effective;
   }
   const unavailByEmp: Record<string, Set<string>> = {};
   for (const ex of exceptions) {
+    if ((ex.status ?? "approved") !== "approved") continue;
     (unavailByEmp[ex.employee_id] ??= new Set()).add(ex.work_date);
+  }
+  // Approved leave -> per-employee leave dates clipped to the period.
+  const leaveByEmp: Record<string, Set<string>> = {};
+  for (const lv of leaveRows) {
+    const from = lv.start_date < period.start_date ? period.start_date : lv.start_date;
+    const to = lv.end_date > period.end_date ? period.end_date : lv.end_date;
+    for (const d of datesInRange(from, to)) {
+      (leaveByEmp[lv.employee_id] ??= new Set()).add(d);
+    }
   }
 
   const employees: EngineEmployee[] = staff.map((e) => ({
@@ -98,15 +157,74 @@ export async function generateForPeriod(
     availabilityByDow: availByEmp[e.id] ?? {},
     unavailableDates: unavailByEmp[e.id] ?? new Set(),
     maxMinutesPerDay: 16 * 60,
+    minRestMinutes: (e.min_rest_hours ?? 0) * 60,
+    maxConsecutiveDays: e.max_consecutive_days,
+    maxMinutesPerWeek:
+      e.target_hours_per_week && e.target_hours_per_week > 0
+        ? e.target_hours_per_week * 60
+        : null,
+    leaveDates: leaveByEmp[e.id] ?? new Set(),
   }));
 
-  const result = generateCoverageSchedule({
+  const posTimeById = new Map(shiftTypes.map((p) => [p.id, p]));
+  return {
     dates: datesInRange(period.start_date, period.end_date),
     positions,
     employees,
+    posTimeById,
+  };
+}
+
+/** Converts stored assignment rows to engine terms (times fall back to the
+ *  position's window; past-midnight ends handled by the engine). */
+export function rowsToEngineAssignments(
+  rows: {
+    shift_type_id: string | null;
+    employee_id: string | null;
+    work_date: string;
+    start_time: string | null;
+    end_time: string | null;
+  }[],
+  posTimeById: Map<string, ShiftType>,
+): CoverageAssignment[] {
+  return rows
+    .filter((l) => l.shift_type_id)
+    .map((l) => {
+      const fallback = posTimeById.get(l.shift_type_id!);
+      return {
+        date: l.work_date,
+        positionId: l.shift_type_id!,
+        employeeId: l.employee_id,
+        startMin: timeStrToMin(l.start_time ?? fallback?.start_time ?? "00:00"),
+        endMin: timeStrToMin(l.end_time ?? fallback?.end_time ?? "00:00"),
+      };
+    });
+}
+
+export async function generateForPeriod(
+  supabase: SupabaseClient,
+  orgId: string,
+  period: PeriodLite,
+) {
+  const input = await loadSolverInput(supabase, orgId, period);
+
+  const { data: lockedData } = await supabase
+    .from("assignments")
+    .select("shift_type_id, employee_id, work_date, start_time, end_time")
+    .eq("period_id", period.id)
+    .eq("locked", true)
+    .not("employee_id", "is", null);
+  const locked = rowsToEngineAssignments(lockedData ?? [], input.posTimeById);
+
+  const result = await defaultSolver.solve({
+    dates: input.dates,
+    positions: input.positions,
+    employees: input.employees,
+    locked,
   });
 
-  await supabase.from("assignments").delete().eq("period_id", period.id);
+  // Locked rows survive; everything else is regenerated.
+  await supabase.from("assignments").delete().eq("period_id", period.id).eq("locked", false);
 
   const rows = result.assignments.map((a) => ({
     org_id: orgId,
@@ -117,8 +235,16 @@ export async function generateForPeriod(
     start_time: minToTimeStr(a.startMin),
     end_time: minToTimeStr(a.endMin),
     status: a.employeeId ? "scheduled" : "open",
+    source: "solver",
   }));
   if (rows.length > 0) await supabase.from("assignments").insert(rows);
+
+  // Post-solve gap sweep: log coverage_gaps + alert managers (deduped).
+  try {
+    await detectGaps(supabase, orgId, period.start_date, period.end_date);
+  } catch (err) {
+    console.error("Gap detection failed (non-fatal):", err);
+  }
 
   return result;
 }

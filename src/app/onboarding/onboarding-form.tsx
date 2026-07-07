@@ -18,14 +18,14 @@ export function OnboardingForm({ defaultName }: { defaultName: string }) {
         <button
           type="button"
           onClick={() => setRole("manager")}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "manager" ? "bg-white shadow-sm" : "text-slate-500"}`}
+          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "manager" ? "bg-card shadow-sm" : "text-slate-500"}`}
         >
           Create a team
         </button>
         <button
           type="button"
           onClick={() => setRole("employee")}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "employee" ? "bg-white shadow-sm" : "text-slate-500"}`}
+          className={`rounded-md px-3 py-2 text-sm font-medium ${role === "employee" ? "bg-card shadow-sm" : "text-slate-500"}`}
         >
           Join a team
         </button>
@@ -64,7 +64,7 @@ export function OnboardingForm({ defaultName }: { defaultName: string }) {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       )}
 
-      <SubmitButton className="w-full inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60">
+      <SubmitButton className="w-full inline-flex items-center justify-center rounded-lg bg-violet px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-soft disabled:opacity-60">
         Continue
       </SubmitButton>
     </form>
