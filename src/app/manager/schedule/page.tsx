@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { ConfirmSubmit } from "@/components/confirm-submit";
+import { FairnessBadge } from "@/components/fairness-badge";
 import { SubmitButton } from "@/components/submit-button";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -80,6 +81,7 @@ export default async function ScheduleListPage() {
             >
               {formatDate(p.start_date)} – {formatDate(p.end_date)}
             </Link>
+            <FairnessBadge score={p.fairness_score} />
             <StatusBadge status={p.status} />
             {p.status === "draft" && (
               <form action={deletePeriodFromList}>

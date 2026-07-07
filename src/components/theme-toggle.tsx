@@ -3,15 +3,24 @@
 // Dark / light switch. The dark theme is the default; "light" is stored in
 // localStorage and applied as a class on <html> (see the inline script in
 // layout.tsx that prevents a flash on load).
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
-export function ThemeToggle() {
-  const [light, setLight] = useState<boolean | null>(null);
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  return () => observer.disconnect();
+}
 
-  useEffect(() => {
-    setLight(document.documentElement.classList.contains("light"));
-  }, []);
+export function ThemeToggle() {
+  const light = useSyncExternalStore(
+    subscribe,
+    () => document.documentElement.classList.contains("light"),
+    () => false,
+  );
 
   function toggle() {
     const next = !document.documentElement.classList.contains("light");
@@ -21,7 +30,6 @@ export function ThemeToggle() {
     } catch {
       /* private mode */
     }
-    setLight(next);
   }
 
   return (
@@ -31,13 +39,7 @@ export function ThemeToggle() {
       title={light ? "Dark mode" : "Light mode"}
       className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
     >
-      {light === null ? (
-        <Moon size={19} aria-hidden />
-      ) : light ? (
-        <Moon size={19} aria-hidden />
-      ) : (
-        <Sun size={19} aria-hidden />
-      )}
+      {light ? <Moon size={19} aria-hidden /> : <Sun size={19} aria-hidden />}
     </button>
   );
 }

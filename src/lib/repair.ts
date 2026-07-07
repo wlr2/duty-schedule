@@ -19,6 +19,7 @@ import {
   type PeriodLite,
 } from "@/lib/schedule-runner";
 import { detectGaps } from "@/lib/gap-detector";
+import { storeFairnessForPeriod } from "@/lib/fairness";
 import { notifyUsers } from "@/lib/notify";
 
 export interface ProposalFill {
@@ -45,7 +46,15 @@ export interface RepairProposal {
   periodId: string;
   fills: ProposalFill[];
   gaps: ProposalGap[];
-  relaxations: { employeeName: string; rule: string; date: string; positionName: string }[];
+  relaxations: {
+    employeeName: string;
+    rule: string;
+    date: string;
+    positionName: string;
+    /** ids added for the relaxation ledger (older drafts may lack them). */
+    employeeId?: string;
+    positionId?: string;
+  }[];
 }
 
 /** Runs the solver in repair mode and stores the outcome as a draft version.
@@ -127,6 +136,8 @@ export async function buildRepairProposal(
       rule: r.rule,
       date: r.date,
       positionName: r.positionName,
+      employeeId: r.employeeId,
+      positionId: r.positionId,
     })),
   };
 
@@ -227,6 +238,29 @@ export async function publishVersion(
     } catch {
       /* non-fatal */
     }
+  }
+
+  // Repairs shift burden — refresh the fairness snapshot.
+  await storeFairnessForPeriod(supabase, orgId, proposal.periodId);
+
+  // Ledger the rule-bends this repair actually applied (migration 13).
+  try {
+    const withIds = proposal.relaxations.filter((r) => r.employeeId);
+    if (withIds.length > 0) {
+      await supabase.from("relaxations").insert(
+        withIds.map((r) => ({
+          org_id: orgId,
+          employee_id: r.employeeId!,
+          position_id: r.positionId ?? null,
+          period_id: proposal.periodId,
+          version_id: version.id,
+          work_date: r.date,
+          rule: r.rule,
+        })),
+      );
+    }
+  } catch (err) {
+    console.error("Relaxation ledger write failed (non-fatal):", err);
   }
 
   // Broadcast: everyone in the org gets the updated schedule (per spec).

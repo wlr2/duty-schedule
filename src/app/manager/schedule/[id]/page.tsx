@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, RefreshCw, Trash2 } from "lucide-react";
 import { RosterMatrix } from "@/components/roster-matrix";
+import { FairnessBadge } from "@/components/fairness-badge";
 import { ExportImageButton } from "@/components/export-image-button";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -114,13 +115,14 @@ export default async function ScheduleReviewPage({
               {formatDate(p.start_date)}
               {p.end_date !== p.start_date && ` – ${formatDate(p.end_date)}`}
             </h1>
-            <p className="mt-1 text-sm capitalize text-slate-600">
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm capitalize text-slate-600">
               Status: {p.status}
               {totalOpen > 0 && (
-                <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                   {totalOpen} unfilled
                 </span>
               )}
+              <FairnessBadge score={p.fairness_score} />
             </p>
           </div>
 

@@ -57,6 +57,8 @@ This is what powers logins and saves your data. It's free and takes ~5 minutes.
    - `supabase/09-schedule-versions.sql` (auto-fix / publish / broadcast loop)
    - `supabase/10-assistant-memory.sql` (AI assistant persistent memory)
    - `supabase/11-archive-and-availability.sql` (schedule archiving, availability approvals, chat end-marker)
+   - `supabase/12-fairness.sql` (fairness score snapshot per schedule)
+   - `supabase/13-relaxations-attendance.sql` (rule-bend ledger + shift check-in/attendance)
 
    Tip: if the editor has text selected when you press Run, it only runs the
    selection — press **Ctrl+A** first so the whole file runs. Each migration

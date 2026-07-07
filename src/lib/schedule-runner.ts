@@ -15,6 +15,7 @@ import {
 } from "@/lib/scheduler";
 import { defaultSolver } from "@/lib/solver";
 import { detectGaps } from "@/lib/gap-detector";
+import { storeFairnessForPeriod } from "@/lib/fairness";
 import type {
   AvailabilityException,
   CoverageRequirement,
@@ -244,6 +245,29 @@ export async function generateForPeriod(
     await detectGaps(supabase, orgId, period.start_date, period.end_date);
   } catch (err) {
     console.error("Gap detection failed (non-fatal):", err);
+  }
+
+  // Fairness snapshot follows every (re)generation — drafts get a score too.
+  await storeFairnessForPeriod(supabase, orgId, period.id);
+
+  // Relaxation debt ledger (migration 13; non-fatal if absent). Regeneration
+  // replaces the period's rows so re-runs don't double-count.
+  try {
+    await supabase.from("relaxations").delete().eq("period_id", period.id);
+    if (result.relaxations.length > 0) {
+      await supabase.from("relaxations").insert(
+        result.relaxations.map((r) => ({
+          org_id: orgId,
+          employee_id: r.employeeId,
+          position_id: r.positionId,
+          period_id: period.id,
+          work_date: r.date,
+          rule: r.rule,
+        })),
+      );
+    }
+  } catch (err) {
+    console.error("Relaxation ledger write failed (non-fatal):", err);
   }
 
   return result;

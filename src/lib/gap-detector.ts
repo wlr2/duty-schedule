@@ -156,7 +156,16 @@ export async function detectGaps(
 
   if (newRows.length > 0) {
     await supabase.from("coverage_gaps").insert(
-      newRows.map(({ positionName: _p, ...row }) => row),
+      newRows.map((g) => ({
+        org_id: g.org_id,
+        position_id: g.position_id,
+        requirement_id: g.requirement_id,
+        work_date: g.work_date,
+        start_time: g.start_time,
+        end_time: g.end_time,
+        required: g.required,
+        staffed: g.staffed,
+      })),
     );
   }
   for (const g of reopened) {

@@ -49,7 +49,12 @@ export async function saveAvailability(formData: FormData) {
     await supabase
       .from("employee_preferences")
       .upsert(
-        rows.map(({ status: _s, ...r }) => r),
+        rows.map((r) => ({
+          org_id: r.org_id,
+          employee_id: r.employee_id,
+          day_of_week: r.day_of_week,
+          preference: r.preference,
+        })),
         { onConflict: "employee_id,day_of_week" },
       );
   } else if (pendingDays.length > 0) {
@@ -113,6 +118,60 @@ export async function requestDayOff(formData: FormData) {
   );
 
   revalidatePath("/dashboard/availability");
+}
+
+/** Check in to one of your own shifts (attendance, migration 13). */
+export async function checkInShift(formData: FormData) {
+  const session = await requireProfile();
+  const orgId = session.profile!.org_id!;
+  const assignmentId = String(formData.get("assignment_id") ?? "");
+  if (!assignmentId) return;
+
+  const supabase = await createClient();
+  const { data: a } = await supabase
+    .from("assignments")
+    .select("id, work_date, start_time, end_time, shift_types(start_time, end_time)")
+    .eq("id", assignmentId)
+    .eq("employee_id", session.userId)
+    .single();
+  if (!a) return;
+  const st = (a.shift_types as unknown as { start_time: string; end_time: string } | null);
+
+  try {
+    await supabase.from("attendance").upsert(
+      {
+        org_id: orgId,
+        employee_id: session.userId,
+        assignment_id: a.id,
+        work_date: a.work_date,
+        scheduled_start: a.start_time ?? st?.start_time ?? null,
+        scheduled_end: a.end_time ?? st?.end_time ?? null,
+        check_in_at: new Date().toISOString(),
+      },
+      { onConflict: "employee_id,assignment_id" },
+    );
+  } catch {
+    /* migration 13 not run yet */
+  }
+  revalidatePath("/dashboard/schedule");
+}
+
+export async function checkOutShift(formData: FormData) {
+  const session = await requireProfile();
+  const assignmentId = String(formData.get("assignment_id") ?? "");
+  if (!assignmentId) return;
+
+  const supabase = await createClient();
+  try {
+    await supabase
+      .from("attendance")
+      .update({ check_out_at: new Date().toISOString() })
+      .eq("assignment_id", assignmentId)
+      .eq("employee_id", session.userId);
+  } catch {
+    /* migration 13 not run yet */
+  }
+  revalidatePath("/dashboard/schedule");
 }
 
 export async function cancelDayOff(formData: FormData) {

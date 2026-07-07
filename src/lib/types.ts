@@ -90,6 +90,9 @@ export interface SchedulePeriod {
   start_date: string;
   end_date: string;
   status: "draft" | "published" | "archived";
+  /** Fairness snapshot (migration 12): FairnessSnapshot jsonb + 0–100 score. */
+  fairness: unknown | null;
+  fairness_score: number | null;
   created_at: string;
 }
 

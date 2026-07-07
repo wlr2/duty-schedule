@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { generateForPeriod } from "@/lib/schedule-runner";
 import { executeMemoryCommand } from "@/lib/assistant-memory";
+import { runStressSweep } from "@/lib/stress-test";
 import { minToTimeStr, todayISO } from "@/lib/scheduler";
 
 // Use the latest capable model. Switch to "claude-haiku-4-5" here for lower cost.
@@ -46,6 +47,11 @@ YOUR JOB:
 2. Use list_staff before proposing eligibility — only use names that exist, and tell the manager if some are missing.
 3. Summarize schedules in plain English when asked (use get_schedule): who works when, total coverage, anything unusual.
 4. If a generated schedule has unfilled slots, explain the likely cause in plain words (too few eligible people, rest rules, availability) and suggest the smallest fix — e.g. "add one more person eligible for PAC, or shorten the overnight window".
+
+HYPOTHETICALS — you can stress-test the roster:
+- When the manager asks "what if X is sick/away", "can we manage without Y", or "who can we least afford to lose", call stress_test. Resolve names to ids with list_staff first; if a name doesn't exist, say which one instead of guessing. No confirmation is needed — the tool changes nothing.
+- Narrate results in plain English: whether the team absorbs the absence, which posts break and when (12-hour times), why nobody could fill them (use the reasons verbatim where helpful), and the smallest fix.
+- If the manager then wants a fix APPLIED (eligibility change, regenerating the schedule), that IS a change — follow the confirmation protocol as usual.
 
 MEMORY — you have a private org notebook at /memories (the memory tool):
 - At the START of a conversation, view /memories and read whichever files are relevant before acting. Apply what you learned there without being re-told.
@@ -111,7 +117,11 @@ async function executeTool(
 
   if (name === "list_staff") {
     const staff = await getStaff(supabase, orgId);
-    return { result: JSON.stringify(staff.map((s) => s.full_name ?? "Unnamed")) };
+    return {
+      result: JSON.stringify(
+        staff.map((s) => ({ id: s.id, name: s.full_name ?? "Unnamed" })),
+      ),
+    };
   }
 
   if (name === "get_schedule") {
@@ -238,6 +248,68 @@ async function executeTool(
     return { result: note, action: `Set eligibility for ${pos.name}` };
   }
 
+  if (name === "stress_test") {
+    // Read-only simulation (writes nothing) — see src/lib/stress-test.ts.
+    let periodId = String(input.period_id ?? "");
+    if (!periodId) {
+      const { data: latest } = await supabase
+        .from("schedule_periods")
+        .select("id, status")
+        .eq("org_id", orgId)
+        .in("status", ["published", "draft"])
+        .order("start_date", { ascending: false });
+      const rows = latest ?? [];
+      periodId = (rows.find((p) => p.status === "published") ?? rows[0])?.id ?? "";
+    }
+    if (!periodId) return { result: "Error: no schedule exists yet — generate one first." };
+    const { data: period } = await supabase
+      .from("schedule_periods")
+      .select("id, start_date, end_date")
+      .eq("id", periodId)
+      .eq("org_id", orgId)
+      .single();
+    if (!period) return { result: "Error: schedule not found." };
+
+    const absentIds = Array.isArray(input.absent_ids)
+      ? (input.absent_ids as unknown[]).map(String).filter(Boolean)
+      : [];
+    const scenarios =
+      absentIds.length > 0
+        ? [
+            {
+              absentIds,
+              fromDate: String(input.from_date ?? "") || period.start_date,
+              toDate: String(input.to_date ?? "") || period.end_date,
+            },
+          ]
+        : undefined;
+
+    const report = await runStressSweep(supabase, orgId, period, { scenarios });
+    // Compact payload: protect the context window.
+    const compact = {
+      period: `${period.start_date}..${period.end_date}`,
+      baselineOpenMinutes: report.baselineGapMinutes,
+      resilienceScore: absentIds.length === 0 ? report.resilienceScore : undefined,
+      truncated: report.truncated || undefined,
+      scenarios: report.scenarios.slice(0, 12).map((s) => ({
+        absent: s.absentNames.join(" + "),
+        absorbed: s.absorbed,
+        gapMinutesCaused: s.deltaGapMinutes,
+        positionsBroken: s.positionsBroken,
+        firstBreakDate: s.firstBreakDate,
+        ruleBends: s.relaxationsIncurred,
+        brokenSlices: s.brokenSlices.slice(0, 10).map((b) => ({
+          date: b.date,
+          position: b.positionName,
+          window: `${minToTimeStr(b.startMin)}-${minToTimeStr(b.endMin)}`,
+          short: b.missing,
+          reasons: b.reasons.slice(0, 3),
+        })),
+      })),
+    };
+    return { result: JSON.stringify(compact) };
+  }
+
   if (name === "generate_schedule") {
     const start = String(input.start_date ?? "");
     const end = String(input.end_date ?? "");
@@ -301,6 +373,30 @@ const TOOLS: Anthropic.Tool[] = [
         end_date: { type: "string", description: "YYYY-MM-DD" },
       },
       required: ["start_date", "end_date"],
+    },
+  },
+  {
+    name: "stress_test",
+    description:
+      "Simulate absences against the current schedule and report what coverage breaks (read-only, changes nothing). Omit absent_ids to sweep every employee one-by-one and find the biggest single point of failure.",
+    input_schema: {
+      type: "object",
+      properties: {
+        period_id: {
+          type: "string",
+          description: "Omit to use the latest published period (else the latest draft).",
+        },
+        absent_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Employee ids simulated absent together. Omit for a full one-person sweep.",
+        },
+        from_date: {
+          type: "string",
+          description: "YYYY-MM-DD, clamped to the period; defaults to period start.",
+        },
+        to_date: { type: "string", description: "YYYY-MM-DD; defaults to period end." },
+      },
     },
   },
   {

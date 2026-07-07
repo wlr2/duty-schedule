@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { generateForPeriod, type PeriodLite } from "@/lib/schedule-runner";
+import { storeFairnessForPeriod } from "@/lib/fairness";
 
 export async function createPeriodAndGenerate(formData: FormData) {
   const session = await requireManager();
@@ -57,6 +58,9 @@ export async function publishPeriod(formData: FormData) {
     .update({ status: "published" })
     .eq("id", periodId)
     .eq("org_id", orgId);
+
+  // Publishing stamps a fresh fairness snapshot (manual edits count too).
+  await storeFairnessForPeriod(supabase, orgId!, periodId);
 
   revalidatePath(`/manager/schedule/${periodId}`);
   revalidatePath("/manager/schedule");

@@ -7,6 +7,7 @@ import {
   Bell,
   CalendarDays,
   CalendarOff,
+  FlaskConical,
   LayoutDashboard,
   Repeat,
   Sparkles,
@@ -26,6 +27,7 @@ const NAV: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/manager/staff", label: "Team", Icon: UsersRound },
   { href: "/manager/leave", label: "Leave requests", Icon: CalendarOff },
   { href: "/manager/coverage", label: "Coverage & gaps", Icon: Repeat },
+  { href: "/manager/stress-test", label: "Stress test", Icon: FlaskConical },
   { href: "/manager/analytics", label: "Analytics", Icon: BarChart3 },
 ];
 

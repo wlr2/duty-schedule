@@ -5,8 +5,11 @@ import { LEAVE_REASONS } from "@/lib/leave";
 import { addDaysISO, dayOfWeekISO, timeStrToMin, todayISO } from "@/lib/scheduler";
 import { buildCoverageSeries, type RequirementBandLite } from "@/lib/coverage-series";
 import { CoverageChart, CoverageChartLegend } from "@/components/coverage-chart";
+import { FairnessBadge } from "@/components/fairness-badge";
 import { VBarChart } from "@/components/vbar-chart";
+import type { FairnessSnapshot } from "@/lib/fairness";
 import type { LeaveRequest, Profile } from "@/lib/types";
+import { PlannerSections } from "./planner-sections";
 
 interface RawA {
   employee_id: string | null;
@@ -51,6 +54,19 @@ export default async function AnalyticsPage() {
       .select("day_of_week, start_time, end_time, min_headcount")
       .eq("org_id", orgId),
   ]);
+
+  // Latest published period's fairness snapshot (migration 12; may be absent).
+  const fairQ = await supabase
+    .from("schedule_periods")
+    .select("start_date, end_date, fairness, fairness_score")
+    .eq("org_id", orgId)
+    .eq("status", "published")
+    .not("fairness_score", "is", null)
+    .order("start_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const fairPeriod = fairQ.error ? null : fairQ.data;
+  const fairSnapshot = (fairPeriod?.fairness ?? null) as FairnessSnapshot | null;
 
   // Signature staffed-vs-required chart for today (same component as Overview).
   const todaySeries = buildCoverageSeries(
@@ -204,6 +220,70 @@ export default async function AnalyticsPage() {
         )}
       </Section>
 
+      <Section title="Duty burden &amp; fairness">
+        {!fairSnapshot ? (
+          <Empty>Publish a schedule to see its fairness score.</Empty>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3 rounded-[20px] border border-slate-200 bg-card p-4">
+              <p className="font-display text-4xl font-bold">
+                {fairSnapshot.score ?? "—"}
+              </p>
+              <div className="min-w-0">
+                <FairnessBadge score={fairSnapshot.score} size="lg" />
+                <p className="mt-1 text-xs text-slate-500">
+                  Latest published schedule ({fairPeriod?.start_date} – {fairPeriod?.end_date}).
+                  100 = burden spread perfectly evenly; nights &amp; weekends weigh 1.5–2×.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[20px] border border-slate-200 bg-card p-4">
+              <VBarChart
+                items={fairSnapshot.people
+                  .filter((p) => p.burden > 0)
+                  .map((p) => ({ label: p.name, value: Math.round(p.burden / 6) / 10 }))}
+                suffix="h"
+              />
+              <p className="mt-1 text-center text-xs text-slate-400">
+                Weighted burden hours per person
+              </p>
+            </div>
+
+            <div className="overflow-x-auto rounded-[20px] border border-slate-200 bg-card">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-left text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Person</th>
+                    <th className="px-4 py-2 text-right font-medium">Total h</th>
+                    <th className="px-4 py-2 text-right font-medium">Night h</th>
+                    <th className="px-4 py-2 text-right font-medium">Weekend h</th>
+                    <th className="px-4 py-2 text-right font-medium">Burden share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fairSnapshot.people.map((p) => (
+                    <tr key={p.employeeId} className="border-t border-slate-100">
+                      <td className="px-4 py-2 font-medium">{p.name}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {Math.round(p.totalMinutes / 6) / 10}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {Math.round(p.nightMinutes / 6) / 10}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {Math.round(p.weekendMinutes / 6) / 10}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">{p.sharePct}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Section>
+
       <Section title="Leave by reason">
         {leaves.length === 0 ? (
           <Empty>No leave requested yet.</Empty>
@@ -213,6 +293,8 @@ export default async function AnalyticsPage() {
           ))
         )}
       </Section>
+
+      <PlannerSections orgId={orgId!} />
 
       <Section title="Leave taken per person">
         {topLeave.length === 0 ? (
