@@ -8,7 +8,9 @@ import { ConfirmSubmit } from "@/components/confirm-submit";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { datesInRange } from "@/lib/scheduler";
+import { datesInRange, dayOfWeekISO, todayISO } from "@/lib/scheduler";
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 import {
   buildGapRows,
   buildRosterRows,
@@ -188,6 +190,35 @@ export default async function ScheduleReviewPage({
             )}
           </div>
 
+          {/* Date strip: jump between days of a multi-day roster. */}
+          {duties.length > 0 && dates.length > 1 && (
+            <nav
+              aria-label="Jump to day"
+              className="mb-4 flex gap-1.5 overflow-x-auto pb-1"
+              data-html2image-ignore
+            >
+              {dates.map((date) => {
+                const isToday = date === todayISO();
+                return (
+                  <a
+                    key={date}
+                    href={`#day-${date}`}
+                    className={`flex w-11 shrink-0 flex-col items-center rounded-xl border py-1.5 ${
+                      isToday
+                        ? "border-violet bg-violet text-white"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-violet/60"
+                    }`}
+                  >
+                    <span className="text-sm font-bold tabular-nums">{date.slice(8)}</span>
+                    <span className={`text-[10px] ${isToday ? "text-white/85" : "text-slate-400"}`}>
+                      {WEEKDAY_SHORT[dayOfWeekISO(date)]}
+                    </span>
+                  </a>
+                );
+              })}
+            </nav>
+          )}
+
           <div className="space-y-8">
             {duties.length === 0 ? (
               <p className="rounded-xl border border-slate-200 bg-card px-4 py-8 text-center text-sm text-slate-500">
@@ -195,7 +226,7 @@ export default async function ScheduleReviewPage({
               </p>
             ) : (
               dates.map((date) => (
-                <section key={date}>
+                <section key={date} id={`day-${date}`} style={{ scrollMarginTop: 16 }}>
                   {dates.length > 1 && (
                     <h2 className="mb-2 font-semibold">{formatDate(date)}</h2>
                   )}
